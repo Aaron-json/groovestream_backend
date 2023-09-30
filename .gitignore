@@ -1,0 +1,15 @@
+# ignore node-modules folder
+/node_modules
+# jet brains apps use .idea files for config
+/.idea
+# env file
+.env
+# ignore json files in the root dit
+# except for package-json and package
+*.json
+!package.json
+!package-lock.json
+fine-craft-385619-3df187daed28.json
+
+TODO.txt
+*.code-workspace
