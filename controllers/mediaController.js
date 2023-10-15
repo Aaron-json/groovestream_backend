@@ -2,7 +2,6 @@ const storage_client = require("../cloud_storage/storage_client");
 const Busboy = require("busboy");
 const { PassThrough } = require("stream");
 const { userModel } = require("../db/schemas/userSchema");
-const { audioFileModel } = require("../db/schemas/audioFileSchema");
 const uuid = require("uuid");
 const { updateQueryOptions } = require("../controllers/userController");
 let parseStream;

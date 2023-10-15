@@ -1,6 +1,6 @@
 const express = require("express");
 const app = express();
-const dotenv = require("dotenv").config();
+require("dotenv").config();
 const storage_client = require("./cloud_storage/storage_client");
 const dbConnect = require("./db/connection/connect");
 const cookieParser = require("cookie-parser");
@@ -8,9 +8,14 @@ const cors = require("cors");
 const refreshRouter = require("./routes/refreshTokenRouter");
 
 //for dev purposes
-const allowedOrigins = [process.env.DEV_HOST_NAME, "http://172.20.10.6:3000"];
+const allowedOrigins = [process.env.DEV_HOST_NAME, "http://localhost:5173"];
 // setup middleware
-app.use(cors({ origin: allowedOrigins, credentials: true }));
+app.use(
+  cors({
+    origin: allowedOrigins,
+    credentials: true,
+  })
+);
 app.use(cookieParser());
 app.use(express.json());
 
@@ -31,5 +36,5 @@ async function initServer() {
 }
 
 initServer()
-  .then(() => app.listen(process.env.PORT || 5000))
+  .then(() => app.listen(process.env.PORT))
   .catch((e) => console.log(e));

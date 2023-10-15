@@ -10,6 +10,9 @@
 !package.json
 !package-lock.json
 fine-craft-385619-3df187daed28.json
+.gcloudignore
+app.yaml
 
 TODO.txt
 *.code-workspace
+*.pem

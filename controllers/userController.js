@@ -123,7 +123,7 @@ const createNewUser = async (req, res) => {
     });
     // user id is guaranteed to be unique by mongodb so every bucket will also be unique
     await storage_client.createBucket(newUser._id.toString());
-    res.send(newUser);
+    res.status(201).send(newUser);
   } catch (error) {
     console.log(error.message);
     res.status(500).send(error);
@@ -150,6 +150,7 @@ const updateUserInfo = async (req, res) => {
 };
 
 const getProfilePicture = async (userID) => {
+  console.log("getting profile picture");
   const file = storage_client.bucket(userID).file("profilePicture");
   const metadataRequest = file.getMetadata();
   const dataRequest = file.download();
@@ -159,7 +160,7 @@ const getProfilePicture = async (userID) => {
     metadataRequest,
   ]);
   if (
-    dataResponse.status === "rejected" ||
+    dataResponse.status === "re``````````````jected" ||
     metadataResponse.status === "rejected"
   ) {
     return null;
@@ -225,6 +226,7 @@ const getRecentSearches = async (req, res) => {
       recentSearches: { $slice: Number(limit) },
       _id: 0,
       // dummy inclusion projection to exclude other fields
+      // since slice is treated as an exclusion projection
       _NOT_A_REAL_FIELD: 1,
     });
     res.status(200).json(user.recentSearches);

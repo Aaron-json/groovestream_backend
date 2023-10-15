@@ -1,42 +1,42 @@
 const mongoose = require("mongoose");
-const { playlistAudioFileSchema } = require("./playlistAudioFile");
+const {playlistAudioFileSchema} = require("./playlistAudioFile");
 const uuid = require("uuid");
 
-const userPlaylistSchema = new mongoose.Schema({
-  // media schemas contain a type to identify them.
-  // 0 - audioFile
-  // 1 - playlist
-  // 2 - playlistAudioFile
-  // 3 - artist
-  // 4 - shared playlist
-  _id: {
-    type: String,
-    default: () => uuid.v4(),
+const userPlaylistSchema = new mongoose.Schema(
+  {
+    // media schemas contain a type to identify them.
+    // 0 - audioFile
+    // 1 - playlist
+    // 2 - playlistAudioFile
+
+    _id: {
+      type: mongoose.Schema.Types.String,
+      default: () => uuid.v4(),
+    },
+    type: {
+      type: mongoose.Schema.Types.Number,
+      default: 1,
+      immutable: true,
+    },
+    name: {
+      type: String,
+      required: true,
+    },
+
+    audioFiles: {
+      type: [playlistAudioFileSchema],
+      default: [],
+    },
+    playbackCount: {
+      type: mongoose.Schema.Types.Number,
+      default: 0,
+    },
+    lastPlayed: {type: mongoose.Schema.Types.Date, default: null},
   },
-  type: {
-    type: Number,
-    default: 1,
-    immutable: true,
-  },
-  name: {
-    type: String,
-    required: true,
-  },
-  dateCreated: {
-    immutable: true,
-    type: Date,
-    default: () => Date.now(),
-  },
-  audioFiles: {
-    type: [playlistAudioFileSchema],
-    default: [],
-  },
-  playbackCount: {
-    type: Number,
-    default: 0,
-  },
-  lastPlayed: { type: Date, default: null },
-});
+  {
+    timestamps: true,
+  }
+);
 
 // future shared playlists will be used
-module.exports = { userPlaylistSchema };
+module.exports = {userPlaylistSchema};
