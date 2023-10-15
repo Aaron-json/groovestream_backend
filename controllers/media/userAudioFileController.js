@@ -1,20 +1,10 @@
-const storage_client = require("../cloud_storage/storage_client");
+const storage_client = require("../../cloud_storage/storage_client");
 const Busboy = require("busboy");
 const {PassThrough} = require("stream");
-const {userModel} = require("../db/schemas/userSchema");
+const {userModel} = require("../../db/schemas/user/userSchema");
 const uuid = require("uuid");
-const {updateQueryOptions} = require("../controllers/userController");
-let parseStream;
-let parseBuffer;
-import("music-metadata").then((music_metadata) => {
-  parseStream = music_metadata.parseStream;
-  parseBuffer = music_metadata.parseBuffer;
-});
-
-const mediaTypeToFieldMap = {
-  0: "audioFiles",
-  1: "playlists",
-};
+const {updateQueryOptions} = require("../user/userController");
+const music_metadata = import("music-metadata")
 const uploadAudioFile = async (req, res) => {
   // memory efficient streaming instead of full upload to a buffer
   const {userID} = req;
@@ -54,7 +44,7 @@ const uploadAudioFile = async (req, res) => {
         storageWriteStream.write(chunk);
         metadataStream.write(chunk);
       })
-      .on("end", (variable) => {
+      .on("end", (_) => {
         storageWriteStream.end();
         metadataStream.end();
       });
@@ -127,6 +117,7 @@ const parseAudioFileMetadata = async (stream, fileInfo) => {
   const {filename, mimeType, _id} = fileInfo;
   const newAudioFile = {filename, _id};
   try {
+    const parseStream = (await music_metadata).parseStream
     const metadata = await parseStream(stream, {mimeType});
     const {common, format} = metadata;
 
@@ -162,31 +153,15 @@ const parseAudioFileMetadata = async (stream, fileInfo) => {
   return newAudioFile;
 };
 
-const uploadMedia2 = async (req, res) => {
-  // uses multer middleware to add file info to req object
-  try {
-    console.log("uploading file");
-    // Access the uploaded file using req.file.buffer
-    const {originalname, buffer, mimetype} = req.file;
-    //const uploadMetadata = await music_metadata.parseBuffer(buffer, mimetype)
-    const newFile = storage_client
-      .bucket(process.env.GOOGLE_CLOUD_TEST_BUCKET)
-      .file(originalname);
-    await newFile.save(buffer);
-    //res.send(uploadMetadata)
-  } catch (e) {
-    console.log(e);
-    res.status(500).send(e);
-  }
-};
-
 const downloadAudioFile = async (req, res) => {
   // protected route so userID is in res object
   const {userID} = req;
   const buffer = [];
   const {audioFileID} = req.params;
   try {
-    const file = storage_client.bucket(process.env.USER_DATA_BUCKET).file(`${userID}/${audioFileID}`);
+    const file = storage_client
+      .bucket(process.env.USER_DATA_BUCKET)
+      .file(`${userID}/${audioFileID}`);
     const metadata = await file.getMetadata();
     const contentType = metadata[0].contentType;
     res.setHeader("Content-Type", contentType);
@@ -216,7 +191,9 @@ const downloadAudioFile = async (req, res) => {
  * @param {String} filename - name of the file to delete, which is typically the ID of the file
  */
 const deleteAudioFileFromStorage = async (userID, filename) => {
-  const audioFile = storage_client.bucket(process.env.USER_DATA_BUCKET).file(`${userID}/${filename}`);
+  const audioFile = storage_client
+    .bucket(process.env.USER_DATA_BUCKET)
+    .file(`${userID}/${filename}`);
   await audioFile.delete();
 };
 
@@ -229,12 +206,12 @@ const deleteAudioFileFromStorage = async (userID, filename) => {
  * @param {Number} type - Type of the audioFile (can only be 0 or 2)
  * @param {String} userID - ID of the user document to update
  * @param {String} mediaID - ID of the media to delete
- * @param {String} playlistID - If type === 2, then provide the ID of the playlist the audioFile is in
+ * @param {String | undefined} playlistID - If type === 2, then provide the ID of the playlist the audioFile is in
  */
-const deleteAudioFileFromDb = async (type, userID, mediaID, playlistID) => {
+const deleteAudioFileFromDb = async (type, userID, mediaID, playlistID = undefined) => {
   if (type === 0) {
     // delete from root
-    return await userModel.updateOne(
+    return userModel.updateOne(
       {_id: userID},
       {
         $pull: {
@@ -247,7 +224,7 @@ const deleteAudioFileFromDb = async (type, userID, mediaID, playlistID) => {
     );
   } else if (type === 2) {
     // delete from playlist
-    return await userModel.updateOne(
+    return userModel.updateOne(
       {
         _id: userID,
         playlists: {
@@ -301,136 +278,11 @@ const deleteAudioFile = async (req, res) => {
   }
 };
 
-const deletePlaylist = async (req, res) => {
-  const {userID} = req;
-  const {playlistID} = req.params;
-
-  try {
-    // get the bucket and make the query to delete items
-    const query = await userModel.findOne(
-      {
-        _id: userID,
-        playlists: {
-          $elemMatch: {
-            _id: playlistID,
-          },
-        },
-      },
-      {"playlists.$": 1, _id: 0}
-    );
-    // get the playlist object to delete from the document
-    const playlist = query.playlists[0];
-    // delete every song in the playlist from storage then from database
-    for (let i = 0; i < playlist.audioFiles.length; i++) {
-      let fileToDeleteID = playlist.audioFiles[i]._id;
-      await deleteAudioFileFromStorage(userID, fileToDeleteID);
-      await deleteAudioFileFromDb(2, userID, fileToDeleteID, playlistID);
-    }
-    // erase the whole playlist from the user playlists lists
-    await userModel.updateOne(
-      {
-        _id: userID,
-      },
-      {
-        $pull: {
-          playlists: {
-            _id: playlistID,
-          },
-        },
-      }
-    );
-    res.sendStatus(200);
-  } catch (error) {
-    console.log(error);
-    res.status(500).send(error);
-  }
-};
-
-const createPlaylist = async (req, res) => {
-  const {userID} = req;
-  const {name} = req.body;
-  console.log(name);
-  try {
-    const query = await userModel.updateOne(
-      {_id: userID},
-      {
-        $push: {
-          playlists: {
-            name,
-          },
-        },
-      },
-      updateQueryOptions
-    );
-    res.sendStatus(201);
-  } catch (err) {
-    res.send(err);
-  }
-};
-const getMediaInfo = async (req, res) => {
-  try {
-    const {userID} = req;
-    const {mediaType, mediaID} = req.params;
-    const mediaField = mediaTypeToFieldMap[mediaType];
-    const projectionString = mediaField + ".$";
-    // programatically create the query projetion the nested subdocuments in the array
-    const mediaFieldProjection = {};
-    mediaFieldProjection[projectionString] = 1;
-
-    // programatically create filter for user documents
-    const queryFilter = {
-      _id: userID,
-    };
-    queryFilter[mediaField] = {
-      $elemMatch: {
-        _id: mediaID,
-      },
-    };
-    const query = await userModel.findOne(queryFilter, mediaFieldProjection);
-    if (!query) {
-      res.sendStatus(404);
-    } else {
-      res.json(query.playlists[0]);
-    }
-  } catch (err) {
-    console.log(err);
-    res.send(err);
-  }
-};
-const __getMediaInfo = async (req, res) => {
-  try {
-    const {userID} = req;
-    const {mediaType, mediaID} = req.params;
-    // field in user document. Typically contains an array
-    const mediaField = mediaTypeToFieldMap[mediaType];
-    // string to query media object in array field
-    const mediaQueryString = mediaField + "_id";
-    // projection string. Ex: "audioFiles.$"
-    const projectionString = mediaField + ".$";
-
-    const mediaObject = await userModel.find(
-      {_id: userID, mediaQueryString: mediaID},
-      {projectionString: 1}
-    );
-    res.json(mediaObject);
-  } catch (err) {
-    res.json(err);
-  }
-};
-
-const uploadProfilePicture = async (req, res) => {
-  const {userID} = req;
-  const user = userModel.findById(userID, {profilePicture: 1});
-};
-
-const getProfilePicture = async (req, res) => {
-};
-
 module.exports = {
   uploadAudioFile,
+  parseAudioFileMetadata,
   downloadAudioFile,
   deleteAudioFile,
-  deletePlaylist,
-  getMediaInfo,
-  createPlaylist,
-};
+  deleteAudioFileFromDb,
+  deleteAudioFileFromStorage,
+}

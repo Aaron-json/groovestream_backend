@@ -12,8 +12,8 @@ const {
   deleteRecentSearch,
   updateUserInfo,
   uploadProfilePhoto,
-} = require("../controllers/userController");
-const { verifyAccessToken } = require("../auth/userAuthentication");
+} = require("../controllers/user/userController");
+const {verifyAccessToken} = require("../controllers/auth/userAuthentication");
 
 router.post("/login", login);
 router.post("/logout", verifyAccessToken, logout);

@@ -1,12 +1,13 @@
-const {userModel} = require("../db/schemas/userSchema");
-const {deletedUserModel} = require("../db/schemas/deletedUserSchema");
-const storage_client = require("../cloud_storage/storage_client");
-const {hashSync, compareSync} = require("bcrypt");
+const { userModel } = require("../../db/schemas/user/userSchema");
+const { deletedUserModel } = require("../../db/schemas/user/deletedUserSchema");
+const storage_client = require("../../cloud_storage/storage_client");
+const { hashSync, compareSync } = require("bcrypt");
 const {
   createAccessToken,
   createRefreshToken,
   refreshTokenCookieOptions,
 } = require("../auth/userAuthentication");
+const sharp = require("sharp");
 
 const updateQueryOptions = {
   runValidators: true,
@@ -15,14 +16,14 @@ const updateQueryOptions = {
 
 const protectedFields = new Set(["password", "_id"]);
 const getUser = async (req, res) => {
-  const {userID} = req;
+  const { userID } = req;
   try {
     //if fields not provided return the whole user document withouth the ID and password
     //NOT recommended unless intentional
     if (!req.query.fields) {
       const results = await userModel.find(
-        {_id: userID},
-        {password: 0, _id: 0}
+        { _id: userID },
+        { password: 0, _id: 0 }
       );
       const document = results[0];
       res.json(document);
@@ -74,8 +75,8 @@ const getAllUsers = async (req, res) => {
 };
 const login = async (req, res) => {
   try {
-    const {email, password} = req.body; // get password and email from request
-    const query = await userModel.find({email}, {password: 1});
+    const { email, password } = req.body; // get password and email from request
+    const query = await userModel.find({ email }, { password: 1 });
     if (query.length === 0) {
       throw new Error(`User with email: "${email}" does not exist`);
     } else if (query.length > 1) {
@@ -91,7 +92,7 @@ const login = async (req, res) => {
     const refreshToken = createRefreshToken(user._id.toString());
     // send access token in json and the refresh token as a httpOnly cookie
     res.cookie("refreshToken", refreshToken, refreshTokenCookieOptions);
-    res.json({accessToken});
+    res.json({ accessToken });
     console.log("successful login");
   } catch (e) {
     res.status(401).send(e);
@@ -108,7 +109,7 @@ const logout = async (req, res) => {
 const createNewUser = async (req, res) => {
   try {
     req.body.password = hashSync(req.body.password, 10);
-    const {firstName, lastName, email, password, dateOfBirth} = req.body;
+    const { firstName, lastName, email, password, dateOfBirth } = req.body;
     const newUser = await userModel.create({
       firstName,
       lastName,
@@ -129,12 +130,12 @@ const createNewUser = async (req, res) => {
 };
 
 const updateUserInfo = async (req, res) => {
-  const {userID} = req;
-  const {fields} = req.body;
+  const { userID } = req;
+  const { fields } = req.body;
   console.log(fields);
   try {
     await userModel.updateOne(
-      {_id: userID},
+      { _id: userID },
       {
         $set: fields,
       },
@@ -149,7 +150,9 @@ const updateUserInfo = async (req, res) => {
 
 const getProfilePicture = async (userID) => {
   console.log("getting profile picture");
-  const file = storage_client.bucket(process.env.USER_DATA_BUCKET).file(`${userID}/profilePicture`);
+  const file = storage_client
+    .bucket(process.env.USER_DATA_BUCKET)
+    .file(`${userID}/profilePicture`);
   const metadataRequest = file.getMetadata();
   const dataRequest = file.download();
   //convert picture to base 64 string and return it
@@ -171,12 +174,15 @@ const getProfilePicture = async (userID) => {
 };
 
 const uploadProfilePhoto = async (req, res) => {
-  const {userID} = req;
+  const { userID } = req;
   //parsed by multer middleware
-  const {originalname, encoding, mimetype, buffer, size} = req.file;
+  const { originalname, encoding, mimetype, buffer, size } = req.file;
 
   try {
-    const file = storage_client.bucket(process.env.USER_DATA_BUCKET).file(`${userID}/profilePicture`);
+    const compressedImage = await sharp();
+    const file = storage_client
+      .bucket(process.env.USER_DATA_BUCKET)
+      .file(`${userID}/profilePicture`);
     await file.save(buffer, {
       contentType: mimetype,
     });
@@ -215,13 +221,13 @@ const deleteAllUsers = async (req, res) => {
 const getRecentSearches = async (req, res) => {
   // order not implemented yet
   try {
-    const {userID} = req;
-    const {limit} = req.query;
+    const { userID } = req;
+    const { limit } = req.query;
 
     // find and findAndModify methods have restrictions
     // see: MongoDB documentation
     const user = await userModel.findById(userID, {
-      recentSearches: {$slice: Number(limit)},
+      recentSearches: { $slice: Number(limit) },
       _id: 0,
       // dummy inclusion projection to exclude other fields
       // since slice is treated as an exclusion projection
@@ -235,12 +241,12 @@ const getRecentSearches = async (req, res) => {
 };
 
 const addRecentSearch = async (req, res) => {
-  const {userID} = req;
-  const {mediaID, mediaType} = req.body;
+  const { userID } = req;
+  const { mediaID, mediaType } = req.body;
   try {
     // try to remove the object from history if it exists
     await userModel.findOneAndUpdate(
-      {_id: userID},
+      { _id: userID },
       {
         $pull: {
           recentSearches: {
@@ -252,7 +258,7 @@ const addRecentSearch = async (req, res) => {
       updateQueryOptions
     );
     await userModel.findOneAndUpdate(
-      {_id: userID},
+      { _id: userID },
       {
         $push: {
           recentSearches: {
@@ -270,11 +276,11 @@ const addRecentSearch = async (req, res) => {
 };
 // implement this method
 const deleteRecentSearch = async (req, res) => {
-  const {userID} = req;
-  const {mediaID, mediaType} = req.query;
+  const { userID } = req;
+  const { mediaID, mediaType } = req.query;
   try {
     await userModel.findOneAndUpdate(
-      {_id: userID},
+      { _id: userID },
       {
         $pull: {
           recentSearches: {
@@ -285,8 +291,7 @@ const deleteRecentSearch = async (req, res) => {
       },
       updateQueryOptions
     );
-  } catch (e) {
-  }
+  } catch (e) {}
 };
 
 const getUserParam = async (req, res) => {
@@ -295,8 +300,7 @@ const getUserParam = async (req, res) => {
    */
   try {
     const user = await userModel.findById(req.userID);
-  } catch (error) {
-  }
+  } catch (error) {}
 };
 
 module.exports = {
