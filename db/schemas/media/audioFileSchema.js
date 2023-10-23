@@ -58,11 +58,6 @@ const audioFileSchema = new mongoose.Schema(
         //   }
       },
     },
-    dateUploaded: {
-      type: Date,
-      immutable: true,
-      default: () => Date.now(),
-    },
     paybackCount: {
       type: Number,
       default: 0,

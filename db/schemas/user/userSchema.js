@@ -1,7 +1,6 @@
 const mongoose = require("mongoose");
 const {userPlaylistSchema} = require("../media/playlistSchema");
 const {audioFileSchema} = require("../media/audioFileSchema");
-const {friendSchema} = require("./friend");
 const uuid = require("uuid");
 const recentSearchesSchema = new mongoose.Schema({
   _id: {
@@ -56,12 +55,6 @@ const userSchema = new mongoose.Schema(
       required: true,
     },
     // string corresponding to its name in storage
-
-    friends: {
-      type: [friendSchema],
-
-      default: [],
-    },
     playlists: {
       type: [userPlaylistSchema],
       default: [],
@@ -79,10 +72,6 @@ const userSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
-
-function dateGetter(dateString) {
-  return new Date(dateString).getTime();
-}
 
 const userModel = mongoose.model(
   "User",

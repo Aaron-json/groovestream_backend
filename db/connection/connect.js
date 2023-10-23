@@ -11,4 +11,4 @@ const dbConnect = async () => {
   console.log("Database connection successful");
 };
 
-module.exports = dbConnect;
+module.exports = {dbConnect};
