@@ -1,16 +1,19 @@
 const mongoose = require("mongoose");
-const {userPlaylistSchema} = require("./playlistSchema");
+const { userPlaylistSchema } = require("./playlistSchema");
 
-const sharedPlaylistMemberSchema = new mongoose.Schema({
-  memberID: {
-    type: mongoose.Schema.Types.String,
-    ref: "users",
-    required: true,
+const sharedPlaylistMemberSchema = new mongoose.Schema(
+  {
+    memberID: {
+      type: mongoose.Schema.Types.String,
+      ref: "User",
+      required: true,
+    },
   },
-}, {
-  _id: false,
-  timestamps: true,
-});
+  {
+    _id: false,
+    timestamps: true,
+  }
+);
 const sharedPlaylistSchema = new mongoose.Schema(
   {
     ...userPlaylistSchema.obj,
@@ -29,7 +32,7 @@ const sharedPlaylistSchema = new mongoose.Schema(
       default: [],
     },
   },
-  {timestamps: true}
+  { timestamps: true }
 );
 
 const sharedPlaylistModel = mongoose.model(
@@ -39,5 +42,6 @@ const sharedPlaylistModel = mongoose.model(
 );
 
 module.exports = {
-  sharedPlaylistSchema, sharedPlaylistModel
-}
+  sharedPlaylistSchema,
+  sharedPlaylistModel,
+};

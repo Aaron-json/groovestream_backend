@@ -1,18 +1,21 @@
 const mongoose = require("mongoose");
-const {audioFileSchema} = require("./audioFileSchema")
+const { audioFileSchema } = require("./audioFileSchema");
 const uuid = require("uuid");
-const sharedPlaylistAudioFileSchema = new mongoose.Schema({
-  ...audioFileSchema.obj,
+const sharedPlaylistAudioFileSchema = new mongoose.Schema(
+  {
+    ...audioFileSchema.obj,
 
-  type: {
-    type: mongoose.Schema.Types.Number,
-    default: 4,
+    type: {
+      type: mongoose.Schema.Types.Number,
+      default: 4,
+    },
+    sharedPlaylistID: {
+      type: mongoose.Schema.Types.String,
+      required: true,
+      ref: "sharedPlaylist",
+    },
   },
-  sharedPlaylistID: {
-    type: mongoose.Schema.Types.String,
-    required: true,
-    ref: "sharedPlaylists"
+  {
+    timestamps: true,
   }
-}, {
-  timestamps: true,
-});
+);

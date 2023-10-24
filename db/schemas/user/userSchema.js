@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
-const {userPlaylistSchema} = require("../media/playlistSchema");
-const {audioFileSchema} = require("../media/audioFileSchema");
+const { userPlaylistSchema } = require("../media/playlistSchema");
+const { audioFileSchema } = require("../media/audioFileSchema");
 const uuid = require("uuid");
 const recentSearchesSchema = new mongoose.Schema({
   _id: {
@@ -58,6 +58,11 @@ const userSchema = new mongoose.Schema(
     playlists: {
       type: [userPlaylistSchema],
       default: [],
+    },
+    sharedPlaylists: {
+      type: [String],
+      default: [],
+      ref: "sharedPlaylist",
     },
     audioFiles: {
       type: [audioFileSchema],
