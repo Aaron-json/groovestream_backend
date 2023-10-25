@@ -2,12 +2,12 @@ const mongoose = require("mongoose");
 const {
   sharedPlaylistModel,
 } = require("../../db/schemas/media/sharedPlaylist");
-const { userModel } = require("../../db/schemas/user/userSchema");
-const { friendExists } = require("../social/friendsController");
+const {userModel} = require("../../db/schemas/user/userSchema");
+const {friendExists} = require("../social/friendsController");
 
 async function createSharedPlaylist(req, res) {
-  const { userID } = req;
-  const { name } = req.body;
+  const {userID} = req;
+  const {name} = req.body;
   const session = await mongoose.startSession();
   session.startTransaction();
   try {
@@ -17,7 +17,7 @@ async function createSharedPlaylist(req, res) {
     }], {session});
 
     await userModel.updateOne({_id: userID}, {
-      $push:{
+      $push: {
         sharedPlaylists: newSharedPlaylist[0]._id
       }
     }, {session})
@@ -25,20 +25,25 @@ async function createSharedPlaylist(req, res) {
   } catch (error) {
     res.sendStatus(500);
     await session.abortTransaction();
-  }
-  finally{
+  } finally {
     await session.endSession();
   }
 }
+
+async function isOwner(userID, sharedPlaylistID) {
+  const playlist = await sharedPlaylistModel.findById(sharedPlaylistID, {owner: 1});
+  return playlistQuery?.owner === userID;
+}
+
 async function addMemberToSharedPlaylist(req, res) {
-  const { userID } = req;
-  const { playlistID } = req.params;
-  const { memberEmail } = req.body;
+  const {userID} = req;
+  const {playlistID} = req.params;
+  const {memberEmail} = req.body;
   const session = await mongoose.startSession();
   session.startTransaction();
   try {
     //get member's id from database to add to database.
-    const memberIDQuery = userModel.findOne({ email: memberEmail });
+    const memberIDQuery = userModel.findOne({email: memberEmail});
     const playlistQuery = sharedPlaylistModel.findById(playlistID);
     let [memberIDResponse, playlist] = await Promise.all([
       memberIDQuery,
@@ -64,28 +69,28 @@ async function addMemberToSharedPlaylist(req, res) {
 }
 
 async function removeMemberFromSharedPlaylist(req, res) {
-  const { userID } = req;
-  const { playlistID } = req.params;
-  const { memberID } = req.body;
-  //  TODO: Implement logic to remove member from shared playlist
+  const {userID} = req;
+  const {playlistID} = req.params;
+  const {memberID} = req.body;
+
   const session = await mongoose.startSession();
   session.startTransaction();
   try {
-    const deletePlaylistFromMemberQuery = userModel.updateOne({_id:memberID}, {
-      $pull:{
+    const deletePlaylistFromMemberQuery = userModel.updateOne({_id: memberID}, {
+      $pull: {
         sharedPlaylists: playlistID
       }
     }, {session})
-    const deleteMemberFromPlaylistQuery = sharedPlaylistModel.updateOne({_id:playlistID}, {
-      $pull:{
+    const deleteMemberFromPlaylistQuery = sharedPlaylistModel.updateOne({_id: playlistID}, {
+      $pull: {
         members: memberID
       }
     }, {session})
-    
+
     await Promise.all([deleteMemberFromPlaylistQuery, deletePlaylistFromMemberQuery]);
 
     await session.commitTransaction();
-  } catch(e) {
+  } catch (e) {
     res.send(500).json(e);
     await session.abortTransaction();
   } finally {
@@ -95,5 +100,6 @@ async function removeMemberFromSharedPlaylist(req, res) {
 
 module.exports = {
   createSharedPlaylist,
-  addMemberToSharedPlaylist
+  addMemberToSharedPlaylist,
+  removeMemberFromSharedPlaylist
 };

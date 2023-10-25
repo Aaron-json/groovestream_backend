@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const { userPlaylistSchema } = require("./playlistSchema");
+const {userPlaylistSchema} = require("./playlistSchema");
 
 const sharedPlaylistMemberSchema = new mongoose.Schema(
   {
@@ -26,13 +26,14 @@ const sharedPlaylistSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.String,
       required: true,
       index: true,
+      ref: "User",
     },
     members: {
       type: [sharedPlaylistMemberSchema],
       default: [],
     },
   },
-  { timestamps: true }
+  {timestamps: true}
 );
 
 const sharedPlaylistModel = mongoose.model(
