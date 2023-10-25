@@ -4,21 +4,32 @@ const {
 } = require("../../db/schemas/media/sharedPlaylist");
 const { userModel } = require("../../db/schemas/user/userSchema");
 const { friendExists } = require("../social/friendsController");
+
 async function createSharedPlaylist(req, res) {
   const { userID } = req;
   const { name } = req.body;
-
+  const session = await mongoose.startSession();
+  session.startTransaction();
   try {
-    const newSharedPlaylist = await sharedPlaylistModel.create({
+    const newSharedPlaylist = await sharedPlaylistModel.create([{
       name,
       owner: userID,
-    });
-    return res.status(201).json(newSharedPlaylist);
+    }], {session});
+
+    await userModel.updateOne({_id: userID}, {
+      $push:{
+        sharedPlaylists: newSharedPlaylist[0]._id
+      }
+    }, {session})
+    res.status(201).json(newSharedPlaylist);
   } catch (error) {
     res.sendStatus(500);
+    await session.abortTransaction();
+  }
+  finally{
+    await session.endSession();
   }
 }
-
 async function addMemberToSharedPlaylist(req, res) {
   const { userID } = req;
   const { playlistID } = req.params;
@@ -37,13 +48,11 @@ async function addMemberToSharedPlaylist(req, res) {
       throw new Error("User or Playlist not found");
     }
     if (!friendExists(userID, memberIDResponse._id)) {
-      return res
-        .status(403)
-        .send({ message: "You are not friends with this user" });
+      throw new Error("You are not friends with this user.")
     }
     playlist.members.push(memberIDResponse._id);
     memberIDResponse.sharedPlaylists.push(playlist._id);
-    await Promise.all([playlist.save(), memberIDResponse.save()]);
+    await Promise.all([playlist.save({session}), memberIDResponse.save({session})]);
     await session.commitTransaction();
     res.sendStatus(204);
   } catch (error) {
@@ -62,10 +71,22 @@ async function removeMemberFromSharedPlaylist(req, res) {
   const session = await mongoose.startSession();
   session.startTransaction();
   try {
-    const memberIDQuery = userModel.updateOne({ _id });
+    const deletePlaylistFromMemberQuery = userModel.updateOne({_id:memberID}, {
+      $pull:{
+        sharedPlaylists: playlistID
+      }
+    }, {session})
+    const deleteMemberFromPlaylistQuery = sharedPlaylistModel.updateOne({_id:playlistID}, {
+      $pull:{
+        members: memberID
+      }
+    }, {session})
+    
+    await Promise.all([deleteMemberFromPlaylistQuery, deletePlaylistFromMemberQuery]);
 
     await session.commitTransaction();
-  } catch {
+  } catch(e) {
+    res.send(500).json(e);
     await session.abortTransaction();
   } finally {
     await session.endSession();
@@ -74,4 +95,5 @@ async function removeMemberFromSharedPlaylist(req, res) {
 
 module.exports = {
   createSharedPlaylist,
+  addMemberToSharedPlaylist
 };
