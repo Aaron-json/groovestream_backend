@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
-const { userModel } = require("../../db/schemas/user/userSchema");
-const { getProfilePicture } = require("../user/userController");
-const { userSocialsModel } = require("../../db/schemas/social/userSocials");
+const {userModel} = require("../../db/schemas/user/userSchema");
+const {getProfilePicture} = require("../user/userController");
+const {userSocialsModel} = require("../../db/schemas/social/userSocials");
 const friendFieldsProjection = {
   firstName: 1,
   lastName: 1,
@@ -9,14 +9,14 @@ const friendFieldsProjection = {
 };
 
 async function getFriends(req, res) {
-  const { userID } = req;
-  const { limit, skip } = req.query;
+  const {userID} = req;
+  const {limit, skip} = req.query;
   try {
     const friendsQuery = await userSocialsModel
       .findOne(
-        { userID },
+        {userID},
         {
-          friends: { $slice: [Number(skip), Number(limit)] },
+          friends: {$slice: [Number(skip), Number(limit)]},
           // DUMMY inclusion field to exclude all other fields except friends array
           // slice is treated as an exclusion field so other fields would still
           // be included
@@ -37,15 +37,15 @@ async function getFriends(req, res) {
 }
 
 async function getFriendRequests(req, res) {
-  const { userID } = req;
-  const { limit, skip } = req.query;
+  const {userID} = req;
+  const {limit, skip} = req.query;
 
   try {
     const friendRequestsQuery = await userSocialsModel
       .findOne(
-        { userID },
+        {userID},
         {
-          friendRequests: { $slice: [Number(skip), Number(limit)] },
+          friendRequests: {$slice: [Number(skip), Number(limit)]},
           // DUMMY inclusion field to exclude all other fields except friends array
           // slice is treated as an exclusion field so other fields would still
           // be included
@@ -64,8 +64,8 @@ async function getFriendRequests(req, res) {
 }
 
 async function getFriendProfilePicture(req, res) {
-  const { userID } = req;
-  const { friendID } = req.params;
+  const {userID} = req;
+  const {friendID} = req.params;
   try {
     const isValidFriend = await friendExists(userID, friendID);
     if (!isValidFriend) {
@@ -85,7 +85,7 @@ async function friendExists(userID, friendID) {
         userID,
         "friends.friendID": friendID,
       },
-      { "friends.$": 1 }
+      {"friends.$": 1}
     )
     .lean();
   return !!friendQuery;
@@ -98,7 +98,7 @@ async function friendRequestExists(userID, requestSenderID) {
         userID,
         "friendRequests.senderID": requestSenderID,
       },
-      { "friendRequests.$": 1 }
+      {"friendRequests.$": 1}
     )
     .lean();
 
@@ -111,7 +111,7 @@ async function deleteFriendRequest(
   session = undefined
 ) {
   return userSocialsModel.updateOne(
-    { userID },
+    {userID},
     {
       $pull: {
         friendRequests: {
@@ -126,12 +126,12 @@ async function deleteFriendRequest(
 }
 
 async function sendFriendRequest(req, res) {
-  const { userID } = req;
-  const { requestReceiverEmail } = req.body;
+  const {userID} = req;
+  const {requestReceiverEmail} = req.body;
 
   try {
     const receiverIDQuery = await userModel
-      .find({ email: requestReceiverEmail }, { _id: 1 })
+      .find({email: requestReceiverEmail}, {_id: 1})
       .lean();
     const receiverID = receiverIDQuery[0]._id;
     if (receiverID === userID) {
@@ -141,7 +141,7 @@ async function sendFriendRequest(req, res) {
     }
     await deleteFriendRequest(receiverID, userID);
     const addFriendRequestQuery = await userSocialsModel.updateOne(
-      { userID: receiverID },
+      {userID: receiverID},
       {
         $push: {
           friendRequests: {
@@ -158,8 +158,8 @@ async function sendFriendRequest(req, res) {
 }
 
 async function acceptFriendRequest(req, res) {
-  const { userID } = req;
-  const { requestSenderID } = req.params;
+  const {userID} = req;
+  const {requestSenderID} = req.params;
   const session = await mongoose.startSession();
   try {
     // check that the modified count is 0. Check shape of the object
@@ -199,8 +199,8 @@ async function acceptFriendRequest(req, res) {
 }
 
 async function rejectFriendRequest(req, res) {
-  const { userID } = req;
-  const { requestSenderID } = req.params;
+  const {userID} = req;
+  const {requestSenderID} = req.params;
 
   try {
     await deleteFriendRequest(userID, requestSenderID);
@@ -212,8 +212,8 @@ async function rejectFriendRequest(req, res) {
 }
 
 async function addFriend(userID, friendID, session = undefined) {
-  return userSocialsModel.UpdateOne(
-    { userID },
+  return userSocialsModel.updateOne(
+    {userID},
     {
       $push: {
         friends: {
@@ -221,13 +221,13 @@ async function addFriend(userID, friendID, session = undefined) {
         },
       },
     },
-    { session }
+    {session}
   );
 }
 
 async function deleteFriend(req, res) {
-  const { userID } = req;
-  const { friendID } = req.params;
+  const {userID} = req;
+  const {friendID} = req.params;
   const session = await mongoose.startSession();
   try {
     session.startTransaction();
@@ -245,8 +245,8 @@ async function deleteFriend(req, res) {
 }
 
 async function deleteFriendHelper(userID, friendID, session = undefined) {
-  return userSocialsModel.UpdateOne(
-    { userID },
+  return userSocialsModel.updateOne(
+    {userID},
     {
       $pull: {
         friends: {

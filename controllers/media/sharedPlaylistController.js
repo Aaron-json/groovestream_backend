@@ -70,8 +70,8 @@ async function addMemberToSharedPlaylist(req, res) {
 
 async function removeMemberFromSharedPlaylist(req, res) {
 
-  const { userID } = req;
-  const { playlistID, memberID } = req.params;
+  const {userID} = req;
+  const {playlistID, memberID} = req.params;
   //  TODO: Implement logic to remove member from shared playlist
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -98,7 +98,7 @@ async function removeMemberFromSharedPlaylist(req, res) {
   }
 }
 
-async function leaveSharedPlaylist(){
+async function leaveSharedPlaylist() {
   const {userID} = req;
   const {playlistID} = req.params;
   const session = await mongoose.startSession();
@@ -106,13 +106,13 @@ async function leaveSharedPlaylist(){
 
   try {
     await userModel.updateOne({_id: userID}, {
-      $pull:{
+      $pull: {
         sharedPlaylists: playlistID
       }
     }, {session});
-    await sharedPlaylistModel.updateOne({_id:playlistID}, {
-      $pull:{
-        members:{
+    await sharedPlaylistModel.updateOne({_id: playlistID}, {
+      $pull: {
+        members: {
           memberID: userID
         }
       }
@@ -122,19 +122,14 @@ async function leaveSharedPlaylist(){
   } catch (error) {
     res.status(500).json(error);
     await session.abortTransaction();
-  }
-  finally{
-   await session.endSession(); 
+  } finally {
+    await session.endSession();
   }
 }
 
 module.exports = {
   createSharedPlaylist,
   addMemberToSharedPlaylist,
-<<<<<<< HEAD
-  removeMemberFromSharedPlaylist
-=======
   removeMemberFromSharedPlaylist,
-  leaveSharedPlaylist
->>>>>>> f536b05c36b3084a61e678dadcb69a0bf1940c7c
+  leaveSharedPlaylist,
 };

@@ -155,8 +155,8 @@ const parseAudioFileMetadata = async (stream, fileInfo) => {
 
 const downloadAudioFile = async (req, res) => {
   // protected route so userID is in res object
+  console.log(req);
   const {userID} = req;
-  const buffer = [];
   const {audioFileID} = req.params;
   try {
     const file = storage_client
@@ -167,18 +167,7 @@ const downloadAudioFile = async (req, res) => {
     res.setHeader("Content-Type", contentType);
     file
       .createReadStream()
-      .on("data", (chunk) => {
-        buffer.push(chunk);
-      })
-      .on("error", (e) => {
-        res.status(500).send(e);
-      })
-      .on("end", () => {
-        const finalBuffer = Buffer.concat(buffer);
-        res.status(200).send(finalBuffer.toString("base64"));
-        console.log(`file: ${file.name} has been successfully downloaded`);
-      });
-    // .on("response", (response) => {}) do no thing on server response
+      .pipe(res)
   } catch (err) {
     return res.status(500).send(err);
   }
