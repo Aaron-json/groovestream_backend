@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
-const { userPlaylistSchema } = require("../media/playlistSchema");
-const { audioFileSchema } = require("../media/audioFileSchema");
+const { userPlaylistSchema } = require("../media/playlist");
+const { audioFileSchema } = require("../media/audioFile");
 const uuid = require("uuid");
 const recentSearchesSchema = new mongoose.Schema({
   _id: {

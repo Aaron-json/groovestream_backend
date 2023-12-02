@@ -2,13 +2,13 @@ const express = require("express");
 const app = express();
 require("dotenv").config();
 const storage_client = require("./cloud_storage/storage_client");
-const {dbConnect} = require("./db/connection/connect");
+const { dbConnect } = require("./db/connection/connect");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const refreshRouter = require("./routes/refreshTokenRouter");
 
 //for dev purposes
-const allowedOrigins = [process.env.DEV_HOST_NAME, "http://localhost:5173"];
+const allowedOrigins = [process.env.DEV_HOST_NAME, "http://localhost:5173", "http://192.168.1.72:5173", "https://653f59098abfc02d081b81ab--classy-sawine-70bdf1.netlify.app"];
 // setup middleware
 app.use(
   cors({

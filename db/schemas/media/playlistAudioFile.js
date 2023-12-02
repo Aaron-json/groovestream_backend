@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const {audioFileSchema} = require("./audioFileSchema");
+const {audioFileSchema} = require("./audioFile");
 
 const playlistAudioFileSchema = new mongoose.Schema(
   {

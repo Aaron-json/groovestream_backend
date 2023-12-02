@@ -1,6 +1,24 @@
 const {userModel} = require("../../db/schemas/user/userSchema");
 const {updateQueryOptions} = require("../user/userController");
-const {deleteAudioFileFromDb, deleteAudioFileFromStorage} = require("./userAudioFileController")
+const {deleteAudioFileFromDb, deleteAudioFileFromStorage} = require("./audioFile")
+
+
+const getPlaylistInfo = async (req, res) => {
+  const {userID} = req;
+  const {playlistID} = req.params;
+  try {
+    const playlistInfoQuery = await userModel.find({
+      _id: userID,
+      "playlists._id": playlistID
+    }, {
+      'playlists.$': 1
+    })
+    res.json(playlistInfoQuery[0].playlists[0])
+  } catch (error) {
+    res.status(400).send(error)
+  }
+}
+
 const deletePlaylist = async (req, res) => {
   const {userID} = req;
   const {playlistID} = req.params;
@@ -70,5 +88,6 @@ const createPlaylist = async (req, res) => {
 
 module.exports = {
   createPlaylist,
-  deletePlaylist
+  deletePlaylist,
+  getPlaylistInfo,
 }
