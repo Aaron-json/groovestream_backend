@@ -5,10 +5,9 @@ const storage_client = require("./cloud_storage/storage_client");
 const { dbConnect } = require("./db/connection/connect");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
-const refreshRouter = require("./routes/refreshTokenRouter");
 
 //for dev purposes
-const allowedOrigins = [process.env.DEV_HOST_NAME, "http://localhost:5173", "http://192.168.1.72:5173", "https://653f59098abfc02d081b81ab--classy-sawine-70bdf1.netlify.app"];
+const allowedOrigins = [process.env.DEV_HOST_NAME, "http://localhost:5173", "http://192.168.1.72:5173", "https://dapper-moonbeam-3645ad.netlify.app"];
 // setup middleware
 app.use(
   cors({
@@ -22,11 +21,12 @@ app.use(express.json());
 // config routers
 const userRouter = require("./routes/userRoutes");
 const mediaRouter = require("./routes/mediaRoutes");
-const friendRouter = require("./routes/friendsRoutes")
+const friendRouter = require("./routes/friendsRoutes");
+const authRouter = require("./routes/auth");
 
 app.use("/user", userRouter);
 app.use("/media", mediaRouter);
-app.use("/refresh", refreshRouter);
+app.use("/auth", authRouter);
 app.use("/social", friendRouter)
 
 async function initServer() {

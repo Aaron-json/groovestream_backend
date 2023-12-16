@@ -15,19 +15,22 @@ const { deletePlaylistAudioFile, getPlaylistAudioFileInfo } = require("../contro
 const {
   getAllUserMedia,
 } = require("../controllers/media/media");
-const { verifyAccessToken } = require("../controllers/auth/userAuthentication");
+const { verifyAccessToken } = require("../controllers/auth/middleware");
 const {
   createSharedPlaylist,
-  addMemberToSharedPlaylist,
   removeMember,
   leaveSharedPlaylist,
   getSharedPlaylistInfo,
   deleteSharedPlaylist,
+  sendPlaylistInvite,
+  acceptPlaylistInvite,
+  rejectPlaylistInvite,
+  getSharedPlaylistsInvites,
 } = require("../controllers/media/sharedPlaylist");
 const {
   downloadSharedPlaylistAudioFile,
   deleteSharedPlaylistAudioFile
-} = require("../controllers/media/sharedPlaylistAudioFile")
+} = require("../controllers/media/sharedPlaylistAudioFile");
 //const multer = require('multer')
 //const upload = multer() // uncomment when not using streaming functionality
 const router = express.Router();
@@ -56,11 +59,11 @@ router.delete("/2/:audioFileID/:playlistID", deletePlaylistAudioFile);
 //shared playlists routes
 router.post("/3", createSharedPlaylist);
 router.delete("/3/:playlistID", deleteSharedPlaylist);
-router.put("/3/member/:playlistID", addMemberToSharedPlaylist);
-router.delete(
-  "/3/member/:playlistID/:memberID",
-  removeMember
-);
+router.get("/3/invites", getSharedPlaylistsInvites)
+router.post("/3/invite/:playlistID", sendPlaylistInvite)
+router.post("/3/member/:senderID/:playlistID", acceptPlaylistInvite)
+router.delete("/3/invite/:senderID/:playlistID", rejectPlaylistInvite)
+router.delete("/3/member/:playlistID/:memberID", removeMember);
 router.get("/3/:playlistID", getSharedPlaylistInfo)
 // router.get("/info/4/:playlistID/:audioFileID", getSharedPlaylistAudioFileInfo)
 router.delete("/3/member/:playlistID", leaveSharedPlaylist);

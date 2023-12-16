@@ -28,7 +28,9 @@ async function getFriends(req, res) {
         firstName: 1,
         lastName: 1,
         email: 1,
+        _id: 1,
       });
+
     res.send(friendsQuery.friends);
   } catch (e) {
     console.log(e);
@@ -38,23 +40,19 @@ async function getFriends(req, res) {
 
 async function getFriendRequests(req, res) {
   const { userID } = req;
-  const { limit, skip } = req.query;
 
   try {
     const friendRequestsQuery = await userSocialsModel
       .findOne(
         { userID },
         {
-          friendRequests: { $slice: [Number(skip), Number(limit)] },
-          // DUMMY inclusion field to exclude all other fields except friends array
-          // slice is treated as an exclusion field so other fields would still
-          // be included
+          friendRequests: 1,
           _id: 0,
-          _NOT_A_REAL_FIELD: 1,
         }
       )
       .populate("friendRequests.senderID", {
         email: 1,
+        _id: 1,
       });
     res.send(friendRequestsQuery.friendRequests);
   } catch (e) {
@@ -148,7 +146,9 @@ async function sendFriendRequest(req, res) {
       {
         $push: {
           friendRequests: {
-            senderID: userID,
+            $each: [{ senderID: userID }],
+            //limit requests to only 20 of the most recent ones
+            $slice: -20
           },
         },
       }
@@ -163,8 +163,9 @@ async function sendFriendRequest(req, res) {
 async function acceptFriendRequest(req, res) {
   const { userID } = req;
   const { requestSenderID } = req.params;
-  const session = await mongoose.startSession();
+  let session;
   try {
+    session = await mongoose.startSession();
     // check that the modified count is 0. Check shape of the object
     session.startTransaction();
     const deleteFriendRequestReponse = await deleteFriendRequest(
@@ -172,32 +173,21 @@ async function acceptFriendRequest(req, res) {
       requestSenderID,
       session
     );
-    const addFriendToSelfPromise = addFriend(userID, requestSenderID, session);
-    const addSelfToFriendPromise = addFriend(requestSenderID, userID, session);
-    const [addFriendToSelfResponse, addSelfToFriendResponse] =
-      await Promise.allSettled([
-        addFriendToSelfPromise,
-        addSelfToFriendPromise,
-      ]);
-    if (
-      addFriendToSelfResponse.status === "rejected" ||
-      addSelfToFriendResponse.status === "rejected"
-    ) {
-      console.log(
-        addFriendToSelfResponse.status,
-        addSelfToFriendResponse.status
-      );
-      throw new Error("adding friends failed");
-    }
+
+    await Promise.all([
+      _addFriend(userID, requestSenderID, session),
+      _addFriend(requestSenderID, userID, session),
+    ]);
+
     await session.commitTransaction();
 
     res.sendStatus(201);
   } catch (e) {
-    await session.abortTransaction();
+    session && await session.abortTransaction();
     console.log(e);
     res.sendStatus(500);
   } finally {
-    await session.endSession();
+    session && await session.endSession();
   }
 }
 
@@ -214,7 +204,7 @@ async function rejectFriendRequest(req, res) {
   }
 }
 
-async function addFriend(userID, friendID, session = undefined) {
+async function _addFriend(userID, friendID, session = undefined) {
   return userSocialsModel.updateOne(
     { userID },
     {
@@ -231,8 +221,9 @@ async function addFriend(userID, friendID, session = undefined) {
 async function deleteFriend(req, res) {
   const { userID } = req;
   const { friendID } = req.params;
-  const session = await mongoose.startSession();
+  let session;
   try {
+    session = await mongoose.startSession();
     session.startTransaction();
     await deleteFriendHelper(userID, friendID, session);
     await deleteFriendHelper(friendID, userID, session);

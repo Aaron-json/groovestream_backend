@@ -1,16 +1,10 @@
 const { userModel } = require("../../db/schemas/user/userSchema");
 const { deletedUserModel } = require("../../db/schemas/user/deletedUserSchema");
 const storage_client = require("../../cloud_storage/storage_client");
-const { hashSync, compareSync } = require("bcrypt");
-const {
-  createAccessToken,
-  createRefreshToken,
-  refreshTokenCookieOptions,
-} = require("../auth/userAuthentication");
+const { hashSync } = require("bcrypt");
 const sharp = require("sharp");
 const { userSocialsModel } = require("../../db/schemas/social/userSocials");
-const { dbConnection } = require("../../db/connection/connect");
-
+const mongoose = require("mongoose");
 const updateQueryOptions = {
   runValidators: true,
   new: true,
@@ -66,87 +60,42 @@ const getUser = async (req, res) => {
   }
 };
 
-const getAllUsers = async (req, res) => {
-  try {
-    const user = await userModel.find();
-    res.json(user);
-  } catch (e) {
-    res.status(500).send(e);
-  }
-};
-const login = async (req, res) => {
-  try {
-    const { email, password } = req.body; // get password and email from request
-    const query = await userModel.find({ email }, { password: 1 });
-    if (query.length === 0) {
-      throw new Error(`User with email: "${email}" does not exist`);
-    } else if (query.length > 1) {
-      throw new Error(`Multiple users with email: "${email}" found`);
-    }
-
-    const user = query[0];
-    const validLogin = compareSync(password, user.password);
-    if (!validLogin) {
-      return res.sendStatus(401);
-    }
-    delete user.password; // do not send password back to user. remove after verification
-    const accessToken = createAccessToken(user._id.toString());
-    const refreshToken = createRefreshToken(user._id.toString());
-    // send access token in json and the refresh token as a httpOnly cookie
-    res.cookie("refreshToken", refreshToken, refreshTokenCookieOptions);
-    res.json({ accessToken });
-    console.log("successful login");
-  } catch (e) {
-    console.log(e);
-    res.status(401).send(e);
-  }
-};
-
-const logout = async (req, res) => {
-  // browsers will only clear cookie if the name and options we pass in match ones of the
-  // cookie we are trying to delete
-  res.clearCookie("refreshToken", refreshTokenCookieOptions);
-  res.sendStatus(200);
-};
 const createNewUser = async (req, res) => {
-  const session = await dbConnection.startSession();
-  session.startTransaction();
+  let session;
   try {
+    session = await mongoose.startSession();
+    session.startTransaction()
     req.body.password = hashSync(req.body.password, 10);
     const { firstName, lastName, email, password, dateOfBirth } = req.body;
     const newUser = await userModel.create(
-      [
-        {
-          firstName,
-          lastName,
-          email,
-          password,
-          dateOfBirth,
-          playlists: [
-            {
-              name: "Favorites",
-            },
-          ],
-        },
-      ],
+      [{
+        firstName,
+        lastName,
+        email,
+        password,
+        dateOfBirth,
+        playlists: [
+          {
+            name: "Favorites",
+          },
+        ],
+      }],
       { session }
     );
     const newUserSocialsDoc = await userSocialsModel.create(
-      [
-        {
-          userID: newUser[0]._id,
-        },
-      ],
+      [{
+        userID: newUser[0]._id,
+      }],
       { session }
     );
-    await session.commitTransaction();
     res.status(201).send(newUser);
+    await session.commitTransaction();
   } catch (error) {
     res.status(500).send(error);
-    await session.abortTransaction();
+    session && await session.abortTransaction();
     console.log(error);
   } finally {
-    await session.endSesssion();
+    session && await session.endSession();
   }
 };
 
@@ -212,127 +161,28 @@ const uploadProfilePhoto = async (req, res) => {
 };
 
 const deleteUser = async (req, res) => {
+  const { userID } = req;
+  let session;
   try {
-    const deletedUser = await userModel.findByIdAndDelete(req.userID);
-    const newDeletedUser = await deletedUserModel.create({
-      _id: deletedUser._id,
-      user: deletedUser,
-    });
-    // do not delete bucket
-    // user info is moved to deleted users db.
-    // check which db user is in to know if they are deleted
+    session = await mongoose.startSession()
+    session.startTransaction()
+    const deletedUser = await userModel.findByIdAndDelete(userID, { session, lean: true });
+    const newDeletedUser = await deletedUserModel.create([deletedUser], { session });
+
+    await session.commitTransaction()
     res.send(newDeletedUser);
   } catch (e) {
+    session && await session.abortTransaction()
     res.status(500).send(e);
+  } finally {
+    session && await session.endSession()
   }
-};
-
-const deleteAllUsers = async (req, res) => {
-  try {
-    const deletedUsers = await userModel.deleteMany();
-    res.send(deletedUsers);
-  } catch (e) {
-    res.status(500).send(e);
-  }
-};
-// fix this method
-const getRecentSearches = async (req, res) => {
-  // order not implemented yet
-  try {
-    const { userID } = req;
-    const { limit } = req.query;
-
-    // find and findAndModify methods have restrictions
-    // see: MongoDB documentation
-    const user = await userModel.findById(userID, {
-      recentSearches: { $slice: Number(limit) },
-      _id: 0,
-      // dummy inclusion projection to exclude other fields
-      // since slice is treated as an exclusion projection
-      _NOT_A_REAL_FIELD: 1,
-    });
-    res.status(200).json(user.recentSearches);
-  } catch (error) {
-    console.log(error);
-    res.status(500).json(error);
-  }
-};
-
-const addRecentSearch = async (req, res) => {
-  const { userID } = req;
-  const { mediaID, mediaType } = req.body;
-  try {
-    // try to remove the object from history if it exists
-    await userModel.findOneAndUpdate(
-      { _id: userID },
-      {
-        $pull: {
-          recentSearches: {
-            mediaID,
-            mediaType,
-          },
-        },
-      },
-      updateQueryOptions
-    );
-    await userModel.findOneAndUpdate(
-      { _id: userID },
-      {
-        $push: {
-          recentSearches: {
-            mediaID,
-            mediaType,
-          },
-        },
-      },
-      updateQueryOptions
-    );
-    res.sendStatus(201);
-  } catch (error) {
-    res.status(500).json(error);
-  }
-};
-// implement this method
-const deleteRecentSearch = async (req, res) => {
-  const { userID } = req;
-  const { mediaID, mediaType } = req.query;
-  try {
-    await userModel.findOneAndUpdate(
-      { _id: userID },
-      {
-        $pull: {
-          recentSearches: {
-            mediaID,
-            mediaType,
-          },
-        },
-      },
-      updateQueryOptions
-    );
-  } catch (e) {}
-};
-
-const getUserParam = async (req, res) => {
-  /**
-   * NOT IMPLEMENTED
-   */
-  try {
-    const user = await userModel.findById(req.userID);
-  } catch (error) {}
 };
 
 module.exports = {
   createNewUser,
   getUser,
-  getAllUsers,
   deleteUser,
-  deleteAllUsers,
-  login,
-  logout,
-  getUserParam,
-  getRecentSearches,
-  addRecentSearch,
-  deleteRecentSearch,
   updateUserInfo,
   uploadProfilePhoto,
   getProfilePicture,

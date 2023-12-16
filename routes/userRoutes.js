@@ -5,18 +5,10 @@ const {
   createNewUser,
   getUser,
   deleteUser,
-  login,
-  logout,
-  getRecentSearches,
-  addRecentSearch,
-  deleteRecentSearch,
   updateUserInfo,
   uploadProfilePhoto,
 } = require("../controllers/user/userController");
-const {verifyAccessToken} = require("../controllers/auth/userAuthentication");
-
-router.post("/login", login);
-router.post("/logout", verifyAccessToken, logout);
+const { verifyAccessToken } = require("../controllers/auth/middleware");
 
 router
   .route("/")
@@ -32,11 +24,6 @@ router
   .route("/profilePicture")
   .put(verifyAccessToken, upload.single("files"), uploadProfilePhoto);
 
-router
-  .route("/recentSearches")
-  .get(verifyAccessToken, getRecentSearches)
-  .post(verifyAccessToken, addRecentSearch)
-  .delete(verifyAccessToken, deleteRecentSearch);
 
 // router.get("/:param", router, getUserParam);
 module.exports = router;

@@ -69,9 +69,9 @@ const sharedPlaylistSchema = new mongoose.Schema(
 );
 
 const sharedPlaylistModel = mongoose.model(
-  "sharedPlaylist",
+  "sharedPlaylist", // schema name (use this for refs)
   sharedPlaylistSchema,
-  "sharedPlaylists"
+  "sharedPlaylists" //collection name
 );
 
 module.exports = {

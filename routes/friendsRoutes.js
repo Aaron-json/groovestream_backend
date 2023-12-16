@@ -6,7 +6,7 @@ const {
   sendFriendRequest,
   rejectFriendRequest, acceptFriendRequest, getFriends, getFriendRequests, getFriendProfilePicture
 } = require("../controllers/social/friendsController");
-const {verifyAccessToken} = require("../controllers/auth/userAuthentication");
+const { verifyAccessToken } = require("../controllers/auth/middleware");
 // verify access tokens for all requests in this route
 userSocialsRouter.use(verifyAccessToken);
 
