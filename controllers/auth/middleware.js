@@ -40,23 +40,20 @@ const verifyAccessToken = (req, res, next) => {
     );
     const { userID } = accessTokenPayload;
     req.userID = userID;
-    console.log("valid access token");
     next();
   } catch (e) {
     // token could not be verified
-    console.log("not a valid access token");
+    console.log(e);
     res.sendStatus(401);
   }
 };
 
 const verifyRefreshToken = (req, res, next) => {
   const refreshToken = req.cookies.refreshToken;
-  console.log("working on refesh token verification...");
 
   // console.log(req.headers);
   if (!refreshToken) {
     // token or header does not exist
-    console.log(`no refresh token found`);
     return res.sendStatus(401);
   }
   try {
@@ -69,8 +66,7 @@ const verifyRefreshToken = (req, res, next) => {
     // this is middleware call next function
     next();
   } catch (e) {
-    console.log("not a valid refresh token");
-
+    console.log(e);
     res.status(403).send(e);
   }
 };

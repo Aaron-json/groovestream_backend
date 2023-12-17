@@ -27,7 +27,6 @@ const login = async (req, res) => {
         // send access token in json and the refresh token as a httpOnly cookie
         res.cookie("refreshToken", refreshToken, refreshTokenCookieOptions);
         res.json({ accessToken });
-        console.log("successful login");
     } catch (e) {
         console.log(e);
         res.status(401).send(e);

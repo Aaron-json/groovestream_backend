@@ -1,6 +1,5 @@
 const express = require("express");
 const app = express();
-require("dotenv").config();
 const storage_client = require("./cloud_storage/storage_client");
 const { dbConnect } = require("./db/connection/connect");
 const cookieParser = require("cookie-parser");

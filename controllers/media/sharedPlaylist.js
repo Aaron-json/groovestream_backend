@@ -235,7 +235,6 @@ async function rejectPlaylistInvite(req, res) {
   const { senderID, playlistID } = req.params;
   let session;
   try {
-    console.log("rejecting")
     session = await mongoose.startSession()
     session.startTransaction()
     const query = await userSocialsModel.findOneAndUpdate({
