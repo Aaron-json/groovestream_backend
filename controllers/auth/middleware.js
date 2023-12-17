@@ -3,8 +3,8 @@ const { sign, verify } = require("jsonwebtoken");
 const refreshTokenCookieOptions = {
   httpOnly: true,
   maxAge: 60 * 60 * 2 * 1000, // unit: milliseconds. (2 hours)
-  sameSite: "strict",
-  secure: false,
+  sameSite: process.env.ENV_MODE === "dev" ? "strict" : "none", // in prod we send cross-site request to the server
+  secure: process.env.ENV_MODE !== "dev",
 };
 
 const createAccessToken = (userID) => {

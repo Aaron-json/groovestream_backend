@@ -38,6 +38,7 @@ const router = express.Router();
 router.use(verifyAccessToken);
 
 //endpoints specifically for uploading all types of audioFiles
+router.post("/audioFile/:mediaType/", uploadAudioFile)
 router.post("/audioFile/:mediaType/:playlistID", uploadAudioFile)
 //get all user media
 router.route("/").get(getAllUserMedia);

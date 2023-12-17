@@ -11,7 +11,7 @@ const allowedOrigins = [process.env.DEV_HOST_NAME, "http://localhost:5173", "htt
 // setup middleware
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin: process.env.ENV_MODE === "dev" ? process.env.DEV_HOST_NAME : process.env.PROD_ORIGIN,
     credentials: true,
   })
 );

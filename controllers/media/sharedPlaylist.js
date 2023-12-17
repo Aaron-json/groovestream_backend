@@ -103,7 +103,7 @@ async function deleteSharedPlaylist(req, res) {
   } catch (e) {
     console.log(e);
     session && await session.abortTransaction();
-    res.sendStatus(500).json(e);
+    res.status(500).json(e);
   }
   finally {
     session && await session.endSession();
@@ -114,6 +114,7 @@ async function isOwner(userID, playlistID) {
   const playlist = await sharedPlaylistModel.findById(playlistID, {
     owner: 1
   });
+  console.log(playlist, userID)
   return playlist?.owner === userID;
 }
 
