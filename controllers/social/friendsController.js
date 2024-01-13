@@ -33,7 +33,6 @@ async function getFriends(req, res) {
 
     res.send(friendsQuery.friends);
   } catch (e) {
-    console.log(e);
     res.sendStatus(500);
   }
 }
@@ -56,7 +55,6 @@ async function getFriendRequests(req, res) {
       });
     res.send(friendRequestsQuery.friendRequests);
   } catch (e) {
-    console.log(e);
     res.sendStatus(500);
   }
 }
@@ -155,7 +153,6 @@ async function sendFriendRequest(req, res) {
     );
     res.sendStatus(200);
   } catch (e) {
-    console.log(e);
     res.sendStatus(500);
   }
 }
@@ -184,7 +181,6 @@ async function acceptFriendRequest(req, res) {
     res.sendStatus(201);
   } catch (e) {
     session && await session.abortTransaction();
-    console.log(e);
     res.sendStatus(500);
   } finally {
     session && await session.endSession();
@@ -199,7 +195,6 @@ async function rejectFriendRequest(req, res) {
     await deleteFriendRequest(userID, requestSenderID);
     res.sendStatus(200);
   } catch (e) {
-    console.log(e);
     res.sendStatus(500);
   }
 }
@@ -231,7 +226,6 @@ async function deleteFriend(req, res) {
     res.sendStatus(200);
   } catch (e) {
     await session.abortTransaction();
-    console.log(e);
     res.send(e);
   } finally {
     await session.endSession();

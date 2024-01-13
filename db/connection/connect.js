@@ -8,7 +8,6 @@ const dbConnect = async () => {
     useNewUrlParser: true,
     useUnifiedTopology: true,
   });
-  console.log("Database connection successful");
 };
 
-module.exports = {dbConnect};
+module.exports = { dbConnect };

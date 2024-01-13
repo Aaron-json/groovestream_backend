@@ -14,7 +14,7 @@ const { deleteAudioFileFromStorage } = require("./global");
 const { streamUserAudioFileToStorage } = require("./global");
 
 const uploadAudioFile = async (req, res) => {
-    // memory efficient streaming instead of full upload to a buffer
+    // handles all audio file uploads
     const { userID } = req;
     const { mediaType, playlistID } = req.params;
     // set up function scoped resources for the upload
@@ -44,7 +44,6 @@ const uploadAudioFile = async (req, res) => {
         // asynchronously parse metadata as the stream is incoming
         try {
 
-            console.log("uploading file", filename)
             const storageUploadOptions = {
                 contentType: mimeType
             }
@@ -76,7 +75,6 @@ const uploadAudioFile = async (req, res) => {
 
             const uploadToStoragePromise = storageStreamFunc();
             const [audioFile, uploadToStorageResponse] = await Promise.all([audioFileMetadata, uploadToStoragePromise])
-            console.log("file is done uploading to storage");
             await dbSaveFunc();
 
 
@@ -87,18 +85,15 @@ const uploadAudioFile = async (req, res) => {
                 filename,
                 error: e,
             })
-            console.log(e)
         }
         // whether error happened or not, remove file from count
         // since it has been handled
         fileCounter--;
 
         if (busboyFinished && fileCounter === 0) {
-            console.log("uploading the last file")
             // when uploading the last file
             if (failedUploads.length > 0) {
                 res.status(500).json(failedUploads);
-                console.log("sent response")
             } else {
                 res.sendStatus(201);
             }
@@ -107,7 +102,6 @@ const uploadAudioFile = async (req, res) => {
     });
 
     busboy.on("finish", () => {
-        // console.log(metadataStream.read());
         busboyFinished = true;
     });
     req.pipe(busboy);
@@ -153,9 +147,7 @@ const parseAudioFileMetadata = async (stream, fileInfo) => {
                 data: compressedIcon.toString("base64"),
             };
         }
-        console.log(newAudioFile);
     } catch (error) {
-        console.log(error);
     } finally {
         return newAudioFile;
     }
@@ -210,7 +202,6 @@ const deleteAudioFile = async (req, res) => {
         // delete file from cloud storage
         await deleteAudioFileFromStorage(userID, audioFileID);
     } catch (e) {
-        console.log(e);
         return res.status(500).send(e);
     }
     // only if deleting file from storage was successful
@@ -222,13 +213,11 @@ const deleteAudioFile = async (req, res) => {
 
         res.sendStatus(200);
     } catch (error) {
-        console.log(error);
         res.send(error);
     }
 };
 const downloadUserAudioFile = async (req, res) => {
     // protected route so userID is in res object
-    console.log("Doanloading audio");
     const { userID } = req;
     const { audioFileID } = req.params;
     try {
@@ -240,12 +229,9 @@ const downloadUserAudioFile = async (req, res) => {
         const [metadata, audioFileData] = await Promise.all([metadataPromise, audioFileDataPromise]);
         const contentType = metadata[0].contentType;
         // res.setHeader("Content-Type", contentType);
-        console.log(audioFileData);
         const base64EncodedAudio = audioFileData[0].toString("base64");
-        console.log()
         res.send(base64EncodedAudio);
     } catch (err) {
-        console.log(err)
         return res.status(500).send(err);
     }
 };

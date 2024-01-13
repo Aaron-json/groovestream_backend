@@ -1,11 +1,11 @@
-const {userModel} = require("../../db/schemas/user/userSchema");
-const {updateQueryOptions} = require("../user/userController");
-const {deleteAudioFileFromDb, deleteAudioFileFromStorage} = require("./audioFile")
+const { userModel } = require("../../db/schemas/user/userSchema");
+const { updateQueryOptions } = require("../user/userController");
+const { deleteAudioFileFromDb, deleteAudioFileFromStorage } = require("./audioFile")
 
 
 const getPlaylistInfo = async (req, res) => {
-  const {userID} = req;
-  const {playlistID} = req.params;
+  const { userID } = req;
+  const { playlistID } = req.params;
   try {
     const playlistInfoQuery = await userModel.find({
       _id: userID,
@@ -20,8 +20,8 @@ const getPlaylistInfo = async (req, res) => {
 }
 
 const deletePlaylist = async (req, res) => {
-  const {userID} = req;
-  const {playlistID} = req.params;
+  const { userID } = req;
+  const { playlistID } = req.params;
 
   try {
     // get the bucket and make the query to delete items
@@ -34,7 +34,7 @@ const deletePlaylist = async (req, res) => {
           },
         },
       },
-      {"playlists.$": 1, _id: 0}
+      { "playlists.$": 1, _id: 0 }
     );
     // get the playlist object to delete from the document
     const playlist = query.playlists[0];
@@ -59,18 +59,16 @@ const deletePlaylist = async (req, res) => {
     );
     res.sendStatus(200);
   } catch (error) {
-    console.log(error);
     res.status(500).send(error);
   }
 };
 
 const createPlaylist = async (req, res) => {
-  const {userID} = req;
-  const {name} = req.body;
-  console.log(name);
+  const { userID } = req;
+  const { name } = req.body;
   try {
     const query = await userModel.updateOne(
-      {_id: userID},
+      { _id: userID },
       {
         $push: {
           playlists: {

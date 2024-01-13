@@ -43,7 +43,6 @@ const verifyAccessToken = (req, res, next) => {
     next();
   } catch (e) {
     // token could not be verified
-    console.log(e);
     res.sendStatus(401);
   }
 };
@@ -51,7 +50,6 @@ const verifyAccessToken = (req, res, next) => {
 const verifyRefreshToken = (req, res, next) => {
   const refreshToken = req.cookies.refreshToken;
 
-  // console.log(req.headers);
   if (!refreshToken) {
     // token or header does not exist
     return res.sendStatus(401);
@@ -66,7 +64,6 @@ const verifyRefreshToken = (req, res, next) => {
     // this is middleware call next function
     next();
   } catch (e) {
-    console.log(e);
     res.status(403).send(e);
   }
 };

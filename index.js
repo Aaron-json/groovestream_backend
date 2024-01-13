@@ -38,4 +38,4 @@ async function initServer() {
 
 initServer()
   .then(() => app.listen(process.env.PORT))
-  .catch((e) => console.log(e));
+  .catch();

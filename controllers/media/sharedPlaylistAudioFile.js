@@ -46,9 +46,7 @@ async function deleteSharedPlaylistAudioFile(req, res) {
     await deleteSharedPlaylistAudioFileFromStorage(playlistID, audioFileID);
     await deleteSharedPlaylistAudioFileFromDb(playlistID, audioFileID);
     res.sendStatus(200);
-    console.log("audio file deleted");
   } catch (e) {
-    console.log(e);
     res.status(500).json(e);
   }
 }
@@ -91,11 +89,9 @@ async function downloadSharedPlaylistAudioFile(req, res) {
     const [metadata, audioFileData] = await Promise.all([metadataPromise, audioFileDataPromise]);
     const contentType = metadata[0].contentType;
     res.setHeader("Content-Type", contentType);
-    // console.log(audioFileData);
     const base64EncodedAudio = audioFileData[0].toString("base64");
     res.send(base64EncodedAudio);
   } catch (err) {
-    console.log(err)
     return res.status(500).send(err);
   }
 }

@@ -42,7 +42,6 @@ async function createSharedPlaylist(req, res) {
     res.status(201).json(newSharedPlaylist);
 
   } catch (error) {
-    console.log(error);
     res.sendStatus(500);
     session && await session.abortTransaction();
   } finally {
@@ -88,7 +87,6 @@ async function deleteSharedPlaylist(req, res) {
     }, { session }))
 
     for (const audioFile of sharedPlaylist.audioFiles) {
-      console.log(`audiofile ${audioFile._id} gone`);
       deletePromises.push(deleteSharedPlaylistAudioFileHelper(playlistID, audioFile._id, session));
     }
 
@@ -101,7 +99,6 @@ async function deleteSharedPlaylist(req, res) {
     res.sendStatus(200);
 
   } catch (e) {
-    console.log(e);
     session && await session.abortTransaction();
     res.status(500).json(e);
   }
@@ -114,7 +111,6 @@ async function isOwner(userID, playlistID) {
   const playlist = await sharedPlaylistModel.findById(playlistID, {
     owner: 1
   });
-  console.log(playlist, userID)
   return playlist?.owner === userID;
 }
 
@@ -222,7 +218,6 @@ async function acceptPlaylistInvite(req, res) {
     await session.commitTransaction();
     res.json(200)
   } catch (err) {
-    console.log(err)
     session && await session.abortTransaction();
     res.status(500).json(err)
   } finally {
@@ -265,7 +260,6 @@ async function rejectPlaylistInvite(req, res) {
     await session.commitTransaction()
     res.sendStatus(200)
   } catch (err) {
-    console.log(err)
     session && await session.abortTransaction()
     res.status(500).json(err)
   } finally {
@@ -299,7 +293,6 @@ async function getSharedPlaylistsInvites(req, res) {
       })
     res.send(playlistInvitesQuery.playlistInvites);
   } catch (e) {
-    console.log(e);
     res.sendStatus(500);
   }
 }
@@ -368,7 +361,6 @@ async function leaveSharedPlaylist(req, res) {
     await session.commitTransaction();
     res.sendStatus(200);
   } catch (error) {
-    console.log(error);
     res.status(500).json(error);
     session && await session.abortTransaction();
   } finally {
@@ -394,7 +386,6 @@ async function getSharedPlaylistInfo(req, res) {
       })
     res.json(sharedPlaylistQuery.sharedPlaylists[0])
   } catch (error) {
-    console.log(error)
     res.status(500).json(error)
   }
 }

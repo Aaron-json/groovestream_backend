@@ -28,7 +28,6 @@ const login = async (req, res) => {
         res.cookie("refreshToken", refreshToken, refreshTokenCookieOptions);
         res.json({ accessToken });
     } catch (e) {
-        console.log(e);
         res.status(401).send(e);
     }
 };

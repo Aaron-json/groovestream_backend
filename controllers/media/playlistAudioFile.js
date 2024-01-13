@@ -5,7 +5,6 @@ const { deleteAudioFileFromStorage } = require("./global")
 async function getPlaylistAudioFileInfo(req, res) {
   const { userID } = req;
   const { playlistID, audioFileID } = req.params;
-  console.log(playlistID, audioFileID);
   try {
     const playlistAudioFileInfoQuery = await userModel.find({
       _id: userID,
@@ -30,7 +29,6 @@ async function getPlaylistAudioFileInfo(req, res) {
     }
     res.json(audioFile)
   } catch (error) {
-    console.log(error)
     res.status(500).json(error);
   }
 }
@@ -42,7 +40,6 @@ const deletePlaylistAudioFile = async (req, res) => {
     // delete file from cloud storage
     await deleteAudioFileFromStorage(userID, audioFileID);
   } catch (e) {
-    console.log(e);
     return res.status(500).send(e);
   }
   // only if deleting file from storage was successful
@@ -54,7 +51,6 @@ const deletePlaylistAudioFile = async (req, res) => {
 
     res.sendStatus(200);
   } catch (error) {
-    console.log(error);
     res.send(error);
   }
 };

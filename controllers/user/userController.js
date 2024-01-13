@@ -55,7 +55,6 @@ const getUser = async (req, res) => {
       res.json(userDataJSON);
     }
   } catch (error) {
-    console.log(error);
     res.status(500).send(error);
   }
 };
@@ -93,7 +92,6 @@ const createNewUser = async (req, res) => {
   } catch (error) {
     res.status(500).send(error);
     session && await session.abortTransaction();
-    console.log(error);
   } finally {
     session && await session.endSession();
   }
@@ -102,7 +100,6 @@ const createNewUser = async (req, res) => {
 const updateUserInfo = async (req, res) => {
   const { userID } = req;
   const { fields } = req.body;
-  console.log(fields);
   try {
     await userModel.updateOne(
       { _id: userID },
@@ -113,13 +110,11 @@ const updateUserInfo = async (req, res) => {
     );
     res.sendStatus(200);
   } catch (error) {
-    console.log(error);
     res.send(error);
   }
 };
 
 const getProfilePicture = async (userID) => {
-  console.log("getting profile picture");
   try {
     const file = storage_client
       .bucket(process.env.USER_DATA_BUCKET)
@@ -132,7 +127,6 @@ const getProfilePicture = async (userID) => {
     };
     return response;
   } catch (e) {
-    //console.log(e.code);
     return null;
   }
 };
@@ -155,8 +149,7 @@ const uploadProfilePhoto = async (req, res) => {
     });
     res.sendStatus(201);
   } catch (error) {
-    console.log(error);
-    res.sendStatus(500);
+    res.status(500).json(error);
   }
 };
 

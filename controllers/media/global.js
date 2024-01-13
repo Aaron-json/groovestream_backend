@@ -5,10 +5,7 @@ const storage_client = require("../../cloud_storage/storage_client");
 const { pipeline: pipeline_async } = require('node:stream/promises');
 const { pipeline: pipeline_sync } = require("stream")
 async function streamUserAudioFileToStorage(userID, fileName, readableStream, options) {
-    // readableStream.on("data", (chunk) => {
-    //   console.log("storage stream", chunk)
-    // })
-    // console.log(userID, fileName)
+
     const storageWriteStream = storage_client.bucket(process.env.USER_DATA_BUCKET).file(`${userID}/${fileName}`)
         .createWriteStream({
             contentType: options.contentType

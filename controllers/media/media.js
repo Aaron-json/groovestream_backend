@@ -3,10 +3,10 @@
  * Also has reusable functionality that is the same for multiple media types
  * Ex. downloading a user's audio file. These are stores in the sama path in storage
  */
-const {userModel} = require("../../db/schemas/user/userSchema");
+const { userModel } = require("../../db/schemas/user/userSchema");
 
 const getAllUserMedia = async (req, res) => {
-  const {userID} = req;
+  const { userID } = req;
   const playlistProjection = {
     "playlists.type": 1,
     "playlists._id": 1,
@@ -32,11 +32,11 @@ const getAllUserMedia = async (req, res) => {
         _id: 0,
       })
       .populate("sharedPlaylists", sharedPlaylistPopulateFields);
-    const {playlists, sharedPlaylists, audioFiles} = mediaQuery
+    const { playlists, sharedPlaylists, audioFiles } = mediaQuery
     const allMedia = [...playlists, ...sharedPlaylists, ...audioFiles];
     res.json(allMedia);
   } catch (error) {
-    console.log(error);
+    res.status(500).json(error)
   }
 };
 
