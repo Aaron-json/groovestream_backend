@@ -1,5 +1,4 @@
 const { streamSharedPlaylistAudioFileToStorage } = require("./sharedPlaylistAudioFile");
-
 const storage_client = require("../../cloud_storage/storage_client");
 const Busboy = require("busboy");
 const { PassThrough } = require("stream");
@@ -10,7 +9,7 @@ const sharp = require("sharp");
 const music_metadata = import("music-metadata");
 const { saveSharedPlaylistAudioFileToDb } = require("./sharedPlaylistAudioFile");
 const { savePlaylistAudioFileToDb } = require("./playlistAudioFile")
-const { deleteAudioFileFromStorage } = require("./global");
+const { deleteAudioFileStorage } = require("./global");
 const { streamUserAudioFileToStorage } = require("./global");
 
 const uploadAudioFile = async (req, res) => {
@@ -52,7 +51,7 @@ const uploadAudioFile = async (req, res) => {
 
             switch (mediaType) {
                 case "0":
-                    dbSaveFunc = async () => saveAudioFileToDb(userID, audioFile);
+                    dbSaveFunc = async () => saveAudioFileDb(userID, audioFile);
                     storageStreamFunc = async () => streamUserAudioFileToStorage(userID, newID, storageStream, storageUploadOptions);
                     break;
                 case "2":
@@ -93,6 +92,7 @@ const uploadAudioFile = async (req, res) => {
         if (busboyFinished && fileCounter === 0) {
             // when uploading the last file
             if (failedUploads.length > 0) {
+                console.log(failedUploads)
                 res.status(500).json(failedUploads);
             } else {
                 res.sendStatus(201);
@@ -160,12 +160,11 @@ const parseAudioFileMetadata = async (stream, fileInfo) => {
  * 0 - audioFile in the root.
  * 2 - audioFile in a playlist.
  * Throws error on failure.
- * @param {Number} type - Type of the audioFile (can only be 0 or 2)
+ * @param {0 | 2} type - Type of the audioFile (can only be 0 or 2)
  * @param {String} userID - ID of the user document to update
  * @param {String} mediaID - ID of the media to delete
  */
-const deleteAudioFileFromDb = async (
-    type,
+const deleteAudioFileDb = async (
     userID,
     mediaID,
 ) => {
@@ -183,7 +182,7 @@ const deleteAudioFileFromDb = async (
     );
 };
 
-async function saveAudioFileToDb(userID, audioFile) {
+async function saveAudioFileDb(userID, audioFile) {
     return userModel.updateOne(
         { _id: userID },
         {
@@ -195,69 +194,85 @@ async function saveAudioFileToDb(userID, audioFile) {
     );
 }
 
-const deleteAudioFile = async (req, res) => {
-    const { userID } = req;
-    const { audioFileID } = req.params;
+const deleteAudioFile = async (userID, audioFileID) => {
     try {
         // delete file from cloud storage
-        await deleteAudioFileFromStorage(userID, audioFileID);
+        await deleteAudioFileStorage(userID, audioFileID);
     } catch (e) {
         return res.status(500).send(e);
     }
     // only if deleting file from storage was successful
-    // delete it from storage
+    // delete it from db
 
     try {
         // delete from root
-        await deleteAudioFileFromDb(0, userID, audioFileID);
+        await deleteAudioFileDb(userID, audioFileID);
 
         res.sendStatus(200);
     } catch (error) {
         res.send(error);
     }
 };
-const downloadUserAudioFile = async (req, res) => {
+const downloadAudioFile = async (req, res) => {
     // protected route so userID is in res object
     const { userID } = req;
-    const { audioFileID } = req.params;
+    const { mediaType, audioFileID, playlistID } = req.params;
     try {
-        const file = storage_client
-            .bucket(process.env.USER_DATA_BUCKET)
-            .file(`${userID}/${audioFileID}`);
-        const metadataPromise = file.getMetadata();
-        const audioFileDataPromise = file.download();
-        const [metadata, audioFileData] = await Promise.all([metadataPromise, audioFileDataPromise]);
-        const contentType = metadata[0].contentType;
-        // res.setHeader("Content-Type", contentType);
-        const base64EncodedAudio = audioFileData[0].toString("base64");
-        res.send(base64EncodedAudio);
+        let bucket;
+        let file;
+        switch (mediaType) {
+            case "0":
+            case "2":
+                bucket = process.env.USER_DATA_BUCKET
+                file = `${userID}/${audioFileID}`
+                break;
+            case "4":
+                bucket = process.env.GLOBAL_AUDIOFILES_BUCKET
+                file = `${playlistID}/${audioFileID}`
+                break;
+            default:
+                return res.status(400).send({ message: "Invalid media type" })
+        }
+
+        const response = await storage_client
+            .bucket(bucket)
+            .file(file).download()
+        res.send(response[0].toString("base64"));
+        // pipeline will close streams on errors to prevent memory leaks
+        // however we lose the ability to interact with res on errors
     } catch (err) {
-        return res.status(500).send(err);
+        // do not attempt to write to response. It will be closed by the pipeline
+        // on error and success
+        return res.sendStatus(500)
     }
 };
-const getAudioFileInfo = async (req, res) => {
-    const { userID } = req;
-    const { audioFileID } = req.params;
-    try {
+/**
+ * @param {string} userID 
+ * @param {string} audioFileID 
+ * @returns Document with the audiofile metadata
+ */
+async function getAudioFileInfo(userID, audioFileID) {
 
-        const audioFIleInfoQuery = await userModel.find({
-            _id: userID,
-            "audioFiles._id": audioFileID
-        }, {
-            "audioFiles.$": 1
-        })
-        if (!audioFIleInfoQuery[0]) {
-            return res.json({ message: "User or audioFile does not exist" })
+    const user = await userModel.findById(
+        userID, {
+        audioFiles: {
+            $elemMatch: {
+                _id: audioFileID,
+            }
         }
-        res.json(audioFIleInfoQuery[0].audioFiles[0])
-    } catch (error) {
-        res.status(500).json(error)
+    });
+    if (!user) {
+        throw new Error("User does not exist");
     }
+    if (user.audioFiles.length === 0) {
+        throw new Error("Audiofile does not exist");
+    }
+    return user.audioFiles[0];
+
 }
 module.exports = {
-    downloadUserAudioFile,
+    downloadAudioFile,
     uploadAudioFile,
     deleteAudioFile,
-    deleteAudioFileFromStorage,
     getAudioFileInfo
 };

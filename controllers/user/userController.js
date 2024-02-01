@@ -155,22 +155,40 @@ const uploadProfilePhoto = async (req, res) => {
 
 const deleteUser = async (req, res) => {
   const { userID } = req;
+  try {
+    await _deleteUser(userID)
+    res.sendStatus(200);
+  } catch (e) {
+    res.status(500).send(e);
+  }
+};
+
+async function _deleteUser(userID) {
   let session;
   try {
     session = await mongoose.startSession()
     session.startTransaction()
-    const deletedUser = await userModel.findByIdAndDelete(userID, { session, lean: true });
-    const newDeletedUser = await deletedUserModel.create([deletedUser], { session });
 
+    const user = userModel.findById(userID, {
+      playlists: 1,
+      sharedPlaylists1: 1,
+      audioFiles: 1,
+
+    })
+
+    await userModel.findByIdAndDelete(userID, { session })
+    await userSocialsModel.findOneAndDelete({ userID: userID }, { session })
     await session.commitTransaction()
-    res.send(newDeletedUser);
-  } catch (e) {
+  } catch (error) {
+    // catch the error so we can cleanly exist the session but
+    // throw it again so the caller is notified
     session && await session.abortTransaction()
-    res.status(500).send(e);
-  } finally {
+    throw error
+  }
+  finally {
     session && await session.endSession()
   }
-};
+}
 
 module.exports = {
   createNewUser,

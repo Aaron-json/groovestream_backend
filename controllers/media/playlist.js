@@ -1,87 +1,83 @@
 const { userModel } = require("../../db/schemas/user/userSchema");
 const { updateQueryOptions } = require("../user/userController");
-const { deleteAudioFileFromDb, deleteAudioFileFromStorage } = require("./audioFile")
+const { deleteAudioFileStorage } = require("./global");
+const { deletePlaylistAudioFileDb } = require("./playlistAudioFile")
 
-
-const getPlaylistInfo = async (req, res) => {
-  const { userID } = req;
-  const { playlistID } = req.params;
-  try {
-    const playlistInfoQuery = await userModel.find({
-      _id: userID,
-      "playlists._id": playlistID
-    }, {
-      'playlists.$': 1
+const getPlaylistInfo = async (userID, playlistID) => {
+  const user = await userModel.findById(
+    userID
+    , {
+      playlists: {
+        $elemMatch: {
+          _id: playlistID
+        }
+      }
     })
-    res.json(playlistInfoQuery[0].playlists[0])
-  } catch (error) {
-    res.status(400).send(error)
+  if (!user) {
+    throw new Error("user not found")
   }
+  if (user.playlists.length === 0) {
+    throw new Error("Playlist not found")
+  }
+  return user.playlists[0]
+
 }
 
-const deletePlaylist = async (req, res) => {
-  const { userID } = req;
-  const { playlistID } = req.params;
-
-  try {
-    // get the bucket and make the query to delete items
-    const query = await userModel.findOne(
-      {
-        _id: userID,
-        playlists: {
-          $elemMatch: {
-            _id: playlistID,
-          },
-        },
-      },
-      { "playlists.$": 1, _id: 0 }
-    );
-    // get the playlist object to delete from the document
-    const playlist = query.playlists[0];
-    // delete every song in the playlist from storage then from database
-    for (let i = 0; i < playlist.audioFiles.length; i++) {
-      let fileToDeleteID = playlist.audioFiles[i]._id;
-      await deleteAudioFileFromStorage(userID, fileToDeleteID);
-      await deleteAudioFileFromDb(2, userID, fileToDeleteID, playlistID);
-    }
-    // erase the whole playlist from the user playlists lists
-    await userModel.updateOne(
-      {
-        _id: userID,
-      },
-      {
-        $pull: {
-          playlists: {
-            _id: playlistID,
-          },
-        },
+const deletePlaylist = async (userID, playlistID) => {
+  // get the bucket and make the query to delete items
+  const query = await userModel.findById(
+    userID,
+    {
+      "playlists": {
+        $elemMatch: {
+          _id: playlistID,
+        }
       }
-    );
-    res.sendStatus(200);
-  } catch (error) {
-    res.status(500).send(error);
+    }
+  );
+  if (!query) {
+    throw new Error("User not found")
   }
+  if (query.playlists?.length === 0) {
+    throw new Error("Playlist not found")
+  }
+  // get the playlist object to delete from the document
+  const playlist = query.playlists[0];
+  // delete every song in the playlist from storage then from database
+  for (let i = 0; i < playlist.audioFiles.length; i++) {
+    let audioFileID = playlist.audioFiles[i]._id;
+    await deleteAudioFileStorage(userID, audioFileID);
+    await deletePlaylistAudioFileDb(userID, playlistID, audioFileID);
+  }
+  // erase the whole playlist from the user playlists lists
+  await userModel.updateOne(
+    {
+      _id: userID,
+    },
+    {
+      $pull: {
+        playlists: {
+          _id: playlistID,
+        },
+      },
+    }
+  );
+
 };
 
-const createPlaylist = async (req, res) => {
-  const { userID } = req;
-  const { name } = req.body;
-  try {
-    const query = await userModel.updateOne(
-      { _id: userID },
-      {
-        $push: {
-          playlists: {
-            name,
-          },
+const createPlaylist = async (userID, name) => {
+  const query = await userModel.updateOne(
+    { _id: userID },
+    {
+      $push: {
+        playlists: {
+          name,
         },
       },
-      updateQueryOptions
-    );
-    res.sendStatus(201);
-  } catch (err) {
-    res.send(err);
-  }
+    },
+    updateQueryOptions
+  );
+
 };
 
 module.exports = {

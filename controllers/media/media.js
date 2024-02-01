@@ -5,8 +5,7 @@
  */
 const { userModel } = require("../../db/schemas/user/userSchema");
 
-const getAllUserMedia = async (req, res) => {
-  const { userID } = req;
+async function getAllUserMedia(userID) {
   const playlistProjection = {
     "playlists.type": 1,
     "playlists._id": 1,
@@ -23,21 +22,18 @@ const getAllUserMedia = async (req, res) => {
     "audioFiles._id": 1,
   };
 
-  try {
-    const mediaQuery = await userModel
-      .findById(userID, {
-        ...playlistProjection,
-        sharedPlaylists: 1,
-        audioFiles: 1,
-        _id: 0,
-      })
-      .populate("sharedPlaylists", sharedPlaylistPopulateFields);
-    const { playlists, sharedPlaylists, audioFiles } = mediaQuery
-    const allMedia = [...playlists, ...sharedPlaylists, ...audioFiles];
-    res.json(allMedia);
-  } catch (error) {
-    res.status(500).json(error)
-  }
+  const mediaQuery = await userModel
+    .findById(userID, {
+      ...playlistProjection,
+      sharedPlaylists: 1,
+      audioFiles: 1,
+      _id: 0,
+    })
+    .populate("sharedPlaylists", sharedPlaylistPopulateFields);
+  const { playlists, sharedPlaylists, audioFiles } = mediaQuery
+  const allMedia = [...playlists, ...sharedPlaylists, ...audioFiles];
+  return allMedia
+
 };
 
 

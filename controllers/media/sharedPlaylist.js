@@ -7,9 +7,8 @@ const { userModel } = require("../../db/schemas/user/userSchema");
 const { deleteSharedPlaylistAudioFileHelper } = require("./sharedPlaylistAudioFile");
 const { userSocialsModel } = require("../../db/schemas/social/userSocials");
 
-async function createSharedPlaylist(req, res) {
-  const { userID } = req;
-  const { name } = req.body;
+async function createSharedPlaylist(userID, name) {
+
   let session;
   try {
     session = await mongoose.startSession();
@@ -39,40 +38,35 @@ async function createSharedPlaylist(req, res) {
     );
 
     await session.commitTransaction();
-    res.status(201).json(newSharedPlaylist);
 
   } catch (error) {
-    res.sendStatus(500);
     session && await session.abortTransaction();
+    throw error
   } finally {
     session && await session.endSession();
   }
 }
 
-async function deleteSharedPlaylist(req, res) {
-  const { userID } = req;
-  const { playlistID } = req.params;
+async function deleteSharedPlaylist(userID, playlistID) {
   let session;
   try {
-    if (!(await isOwner(userID, playlistID))) {
-      // do not return immediately since we need to close the
-      // session in the finally clause
-      throw new Error({ code: 403, message: "You are not the owner of this playlist." })
-    }
-    session = await mongoose.startSession();// could throw error so start it in try catch
+
+    session = await mongoose.startSession();
     session.startTransaction();
     const sharedPlaylist = await sharedPlaylistModel.findById(playlistID, {
-      members: 1, audioFiles: 1
+      members: 1, audioFiles: 1, owner: 1
     })
 
     if (!sharedPlaylist) {
       throw new Error({ code: 404, message: `Could not find playlist with id ${playlistID}` });
     }
 
+    if (sharedPlaylist.owner !== userID) {
+      throw new Error({ code: 403, message: "You are not the owner of this playlist." })
+    }
     const deletePromises = []
     //remove this shared playlist from all member's documents
     for (const member of sharedPlaylist.members) {
-
       deletePromises.push(
         _removeSharedPlaylistFromMemberDoc(playlistID, member._id, session)
       );
@@ -87,6 +81,7 @@ async function deleteSharedPlaylist(req, res) {
     }, { session }))
 
     for (const audioFile of sharedPlaylist.audioFiles) {
+      // delete the audio files from storage
       deletePromises.push(deleteSharedPlaylistAudioFileHelper(playlistID, audioFile._id, session));
     }
 
@@ -96,11 +91,12 @@ async function deleteSharedPlaylist(req, res) {
 
     await session.commitTransaction();
 
-    res.sendStatus(200);
 
   } catch (e) {
+    // catch exceptions to gracefully terminate the session
+    // rethrow to bubble them up to the caller
     session && await session.abortTransaction();
-    res.status(500).json(e);
+    throw e
   }
   finally {
     session && await session.endSession();
@@ -114,10 +110,7 @@ async function isOwner(userID, playlistID) {
   return playlist?.owner === userID;
 }
 
-async function sendPlaylistInvite(req, res) {
-  const { userID } = req;
-  const { playlistID } = req.params;
-  const { memberEmail } = req.body;
+async function sendPlaylistInvite(userID, playlistID, memberEmail) {
   let session;
   try {
     session = await mongoose.startSession()
@@ -138,14 +131,16 @@ async function sendPlaylistInvite(req, res) {
       $push: {
         playlistInvites: {
           $each: [{ playlistID, senderID: userID }],
+          // slice requires us to use each operator when adding
           $slice: -10
+          // only keep the 10 most recent invites.
         }
       }
-      // slice requires us to use each when adding
     }, {
       projection: {
         _id: 0,
         playlistInvites: {
+          // use this peojection to verify if an innvite to this playlist already existed before
           $elemMatch: {
             playlistID
           }
@@ -166,19 +161,16 @@ async function sendPlaylistInvite(req, res) {
       throw new Error({ code: 400, message: "Invite already sent" })
     }
     await session.commitTransaction()
-    res.json(200);
   } catch (err) {
     session && await session.abortTransaction()
-    res.status(500).json(err);
+    throw err
   } finally {
     session && await session.endSession()
   }
 }
 
-async function acceptPlaylistInvite(req, res) {
+async function acceptPlaylistInvite(userID, playlistID, senderID) {
   // TODO
-  const { userID } = req;
-  const { senderID, playlistID } = req.params;
   let session;
   try {
     session = await mongoose.startSession()
@@ -216,18 +208,15 @@ async function acceptPlaylistInvite(req, res) {
       session,
     })
     await session.commitTransaction();
-    res.json(200)
   } catch (err) {
     session && await session.abortTransaction();
-    res.status(500).json(err)
+    throw err
   } finally {
     session && await session.endSession();
   }
 }
 
-async function rejectPlaylistInvite(req, res) {
-  const { userID } = req;
-  const { senderID, playlistID } = req.params;
+async function rejectPlaylistInvite(userID, playlistID, senderID) {
   let session;
   try {
     session = await mongoose.startSession()
@@ -258,53 +247,44 @@ async function rejectPlaylistInvite(req, res) {
       throw new Error({ code: 404, message: "Invite does not exists" })
     }
     await session.commitTransaction()
-    res.sendStatus(200)
   } catch (err) {
     session && await session.abortTransaction()
-    res.status(500).json(err)
+    throw err
   } finally {
     session && await session.endSession()
   }
 }
-async function getSharedPlaylistsInvites(req, res) {
-  const { userID } = req;
-  const { limit, skip } = req.query;
-
-  try {
-    const playlistInvitesQuery = await userSocialsModel
-      .findOne(
-        { userID },
-        {
-          playlistInvites: { $slice: [0, 10] },
-          // DUMMY inclusion field to exclude all other fields except friends array
-          // slice is treated as an exclusion field so other fields would still
-          // be included
-          _id: 0,
-          _NOT_A_REAL_FIELD: 1,
-        }
-      )
-      .populate("playlistInvites.senderID", {
-        email: 1,
-        _id: 1,
-      })
-      .populate("playlistInvites.playlistID", {
-        _id: 1,
-        name: 1,
-      })
-    res.send(playlistInvitesQuery.playlistInvites);
-  } catch (e) {
-    res.sendStatus(500);
-  }
+async function getSharedPlaylistsInvites(userID) {
+  const playlistInvitesQuery = await userSocialsModel
+    .findOne(
+      { userID },
+      {
+        playlistInvites: { $slice: [0, 10] },
+        // DUMMY inclusion field to exclude all other fields except friends array
+        // slice is treated as an exclusion field so other fields would still
+        // be included
+        _id: 0,
+        _NOT_A_REAL_FIELD: 1,
+      }
+    )
+    .populate("playlistInvites.senderID", {
+      email: 1,
+      _id: 1,
+    })
+    .populate("playlistInvites.playlistID", {
+      _id: 1,
+      name: 1,
+    })
+  return playlistInvitesQuery.playlistInvites
 }
-async function removeMember(req, res) {
-  const { userID } = req;
-  const { playlistID, memberID } = req.params;
+async function removeMember(userID, playlistID, memberID) {
+
   let session;
   try {
     session = await mongoose.startSession()
     session.startTransaction();
     if (!(await isOwner(userID, playlistID))) {
-      return res.status(403).json({ code: 403, message: "Unauthorized. You are not the owner of this playlist" })
+      throw new Error("Unauthorized. You are not the owner of this playlist")
     }
     await Promise.all([
       _removeSharedPlaylistFromMemberDoc(playlistID, memberID, session),
@@ -312,10 +292,9 @@ async function removeMember(req, res) {
     ]);
 
     await session.commitTransaction();
-    res.send(200)
   } catch (error) {
     session && await session.abortTransaction()
-    res.sendStatus(500);
+    throw error
   } finally {
     session && await session.endSession()
   }
@@ -345,9 +324,7 @@ async function _removeMemberFromSharedPlaylist(playlistID, memberID, session) {
   );
 }
 
-async function leaveSharedPlaylist(req, res) {
-  const { userID } = req;
-  const { playlistID } = req.params;
+async function leaveSharedPlaylist(userID, playlistID) {
 
   let session;
   try {
@@ -359,35 +336,30 @@ async function leaveSharedPlaylist(req, res) {
       _removeMemberFromSharedPlaylist(playlistID, userID, session),
     ])
     await session.commitTransaction();
-    res.sendStatus(200);
   } catch (error) {
-    res.status(500).json(error);
     session && await session.abortTransaction();
+    throw error
   } finally {
     session && await session.endSession();
   }
 }
 
-async function getSharedPlaylistInfo(req, res) {
-  const { userID } = req;
-  const { playlistID } = req.params;
-
-  try {
-    const sharedPlaylistQuery = await userModel.findOne({
-      _id: userID,
-      "sharedPlaylists": playlistID,
-    }, { "sharedPlaylists.$": 1 })
-      .populate("sharedPlaylists")
-      .populate("sharedPlaylists.members", {
-        firstName: 1,
-        lastName: 1,
-        email: 1,
-        _id: 1,
-      })
-    res.json(sharedPlaylistQuery.sharedPlaylists[0])
-  } catch (error) {
-    res.status(500).json(error)
+async function getSharedPlaylistInfo(userID, playlistID) {
+  const query = await userModel.findOne({
+    _id: userID,
+    "sharedPlaylists": playlistID,
+  }, { "sharedPlaylists.$": 1 })
+    .populate("sharedPlaylists")
+    .populate("sharedPlaylists.members", {
+      firstName: 1,
+      lastName: 1,
+      email: 1,
+      _id: 1,
+    })
+  if (!query) {
+    throw new Error("User or playlist not found")
   }
+  return query.sharedPlaylists[0]
 }
 
 module.exports = {

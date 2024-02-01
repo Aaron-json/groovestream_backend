@@ -65,7 +65,7 @@ async function getFriendProfilePicture(req, res) {
   try {
     const isValidFriend = await friendExists(userID, friendID);
     if (!isValidFriend) {
-      return res.sendStatus(401);
+      return res.sendStatus(400);
     }
     const friendProfilePicture = await getProfilePicture(friendID);
     res.json(friendProfilePicture);

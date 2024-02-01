@@ -61,6 +61,7 @@ const userSocialsSchema = new mongoose.Schema({
     index: true,
     unique: true,
     type: mongoose.Schema.Types.String,
+    ref: "User"
   },
   friends: {
     type: [friendSchema],

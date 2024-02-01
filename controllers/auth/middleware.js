@@ -3,8 +3,8 @@ const { sign, verify } = require("jsonwebtoken");
 const refreshTokenCookieOptions = {
   httpOnly: true,
   maxAge: 60 * 60 * 2 * 1000, // unit: milliseconds. (2 hours)
-  sameSite: process.env.ENV_MODE === "dev" ? "strict" : "none", // in prod we send cross-site request to the server
-  secure: process.env.ENV_MODE !== "dev",
+  sameSite: process.env.NODE_ENV !== "production" ? "strict" : "none", // in prod we send cross-site request to the server
+  secure: process.env.NODE_ENV === "production",
 };
 
 const createAccessToken = (userID) => {
@@ -25,10 +25,9 @@ const createRefreshToken = (userID) => {
 // middleware function
 const verifyAccessToken = (req, res, next) => {
   const authHeader = req.headers["authorization"];
-  const accessToken = authHeader && authHeader.split(" ")[1]; // check if we have authorization header
+  const accessToken = authHeader && authHeader.split(" ")[1];
   if (!accessToken) {
     // token or header does not exist
-
     return res.sendStatus(401);
   }
 
@@ -42,7 +41,10 @@ const verifyAccessToken = (req, res, next) => {
     req.userID = userID;
     next();
   } catch (e) {
-    // token could not be verified
+    // the user should try to refresh their access token
+    // using a valid refresh token.
+    // the 401 status is reserved for this middleware ONLY to make it clear
+    // when the client is supposed to refresh or not.
     res.sendStatus(401);
   }
 };
@@ -51,8 +53,7 @@ const verifyRefreshToken = (req, res, next) => {
   const refreshToken = req.cookies.refreshToken;
 
   if (!refreshToken) {
-    // token or header does not exist
-    return res.sendStatus(401);
+    return res.sendStatus(403);
   }
   try {
     const refreshTokenPayload = verify(
@@ -61,7 +62,6 @@ const verifyRefreshToken = (req, res, next) => {
     );
     const { userID } = refreshTokenPayload;
     req.userID = userID;
-    // this is middleware call next function
     next();
   } catch (e) {
     res.status(403).send(e);

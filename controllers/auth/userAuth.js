@@ -1,4 +1,5 @@
 const { userModel } = require("../../db/schemas/user/userSchema")
+const { cleanUp } = require("../media/clean")
 const { compareSync } = require("bcrypt")
 const {
     createAccessToken,
@@ -8,6 +9,7 @@ const {
 
 const login = async (req, res) => {
     try {
+
         const { email, password } = req.body; // get password and email from request
         const query = await userModel.find({ email }, { password: 1 });
         if (query.length === 0) {
@@ -19,7 +21,7 @@ const login = async (req, res) => {
         const user = query[0];
         const validLogin = compareSync(password, user.password);
         if (!validLogin) {
-            return res.sendStatus(401);
+            return res.sendStatus(403);
         }
         delete user.password; // do not send password back to user. remove after verification
         const accessToken = createAccessToken(user._id.toString());
@@ -27,8 +29,9 @@ const login = async (req, res) => {
         // send access token in json and the refresh token as a httpOnly cookie
         res.cookie("refreshToken", refreshToken, refreshTokenCookieOptions);
         res.json({ accessToken });
+        cleanUp(user._id)
     } catch (e) {
-        res.status(401).send(e);
+        res.status(400).send(e);
     }
 };
 
@@ -38,7 +41,6 @@ const logout = async (req, res) => {
     res.clearCookie("refreshToken", refreshTokenCookieOptions);
     res.sendStatus(200);
 };
-
 
 const issueAccessToken = (req, res) => {
     // issues a new access token, runs after the verifyRefreshToken middleware

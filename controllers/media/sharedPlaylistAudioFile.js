@@ -2,7 +2,6 @@ const { userModel } = require("../../db/schemas/user/userSchema")
 const storage_client = require("../../cloud_storage/storage_client")
 const { pipeline: pipeline_async } = require('node:stream/promises');
 const { sharedPlaylistModel } = require("../../db/schemas/media/sharedPlaylist");
-const mongoose = require("mongoose");
 async function getSharedPlaylistAudioFileInfo(req, res) {
   const { userID } = req;
   const { playlistID, audioFileID } = req.params;
@@ -39,19 +38,18 @@ async function saveSharedPlaylistAudioFileToDb(playlistID, audioFile, userID) {
   })
 }
 
-async function deleteSharedPlaylistAudioFile(req, res) {
-  const { playlistID, audioFileID } = req.params;
-
+async function deleteSharedPlaylistAudioFile(userID, audioFileID, playlistID) {
+  // TODO: Add member / owner checks for added authentication
   try {
-    await deleteSharedPlaylistAudioFileFromStorage(playlistID, audioFileID);
-    await deleteSharedPlaylistAudioFileFromDb(playlistID, audioFileID);
+    await deleteSharedPlaylistAudioFileStorage(playlistID, audioFileID);
+    await deleteSharedPlaylistAudioFileDb(playlistID, audioFileID);
     res.sendStatus(200);
   } catch (e) {
     res.status(500).json(e);
   }
 }
 
-async function deleteSharedPlaylistAudioFileFromDb(playlistID, audioFileID, session) {
+async function deleteSharedPlaylistAudioFileDb(playlistID, audioFileID, session) {
   return sharedPlaylistModel.updateOne({
     _id: playlistID
   }, {
@@ -63,7 +61,7 @@ async function deleteSharedPlaylistAudioFileFromDb(playlistID, audioFileID, sess
   }, { session })
 }
 
-async function deleteSharedPlaylistAudioFileFromStorage(playlistID, audioFileID) {
+async function deleteSharedPlaylistAudioFileStorage(playlistID, audioFileID) {
   return storage_client.bucket(process.env.GLOBAL_AUDIOFILES_BUCKET).file(`${playlistID}/${audioFileID}`)
     .delete()
 }
@@ -74,26 +72,8 @@ async function deleteSharedPlaylistAudioFileHelper(playlistID, audioFileID, sess
     Convenience if needed ot export this functionality.
     Internal functions can call the two functions independently if preferred.
   */
-  await deleteSharedPlaylistAudioFileFromStorage(playlistID, audioFileID);
-  await deleteSharedPlaylistAudioFileFromDb(playlistID, audioFileID, session);
-}
-
-async function downloadSharedPlaylistAudioFile(req, res) {
-  const { playlistID, audioFileID } = req.params;
-  try {
-    const file = storage_client
-      .bucket(process.env.GLOBAL_AUDIOFILES_BUCKET)
-      .file(`${playlistID}/${audioFileID}`);
-    const metadataPromise = file.getMetadata();
-    const audioFileDataPromise = file.download();
-    const [metadata, audioFileData] = await Promise.all([metadataPromise, audioFileDataPromise]);
-    const contentType = metadata[0].contentType;
-    res.setHeader("Content-Type", contentType);
-    const base64EncodedAudio = audioFileData[0].toString("base64");
-    res.send(base64EncodedAudio);
-  } catch (err) {
-    return res.status(500).send(err);
-  }
+  await deleteSharedPlaylistAudioFileStorage(playlistID, audioFileID);
+  await deleteSharedPlaylistAudioFileDb(playlistID, audioFileID, session);
 }
 
 module.exports = {
@@ -101,6 +81,5 @@ module.exports = {
   saveSharedPlaylistAudioFileToDb,
   streamSharedPlaylistAudioFileToStorage,
   deleteSharedPlaylistAudioFile,
-  downloadSharedPlaylistAudioFile,
   deleteSharedPlaylistAudioFileHelper
 }

@@ -5,18 +5,19 @@ const { dbConnect } = require("./db/connection/connect");
 const cookieParser = require("cookie-parser");
 const cors = require("cors");
 
-//for dev purposes
-const allowedOrigins = [process.env.DEV_HOST_NAME, "http://localhost:5173", "http://192.168.1.72:5173", "https://dapper-moonbeam-3645ad.netlify.app"];
+const PORT = process.env.NODE_ENV === "production" ? process.env.PORT : 5001
+const allowedOrigins = ["https://groovestream.netlify.app", "https://www.groovestreamapp.com"]
+const ORIGIN = process.env.NODE_ENV === "production" ? allowedOrigins : "http://localhost:5173"
+
 // setup middleware
-app.use(
-  cors({
-    origin: process.env.ENV_MODE === "dev" ? process.env.DEV_HOST_NAME : process.env.PROD_ORIGIN,
-    credentials: true,
-  })
-);
+const CORS_OPTIONS = {
+  origin: ORIGIN,
+  credentials: true,
+}
+
+app.use(cors(CORS_OPTIONS));
 app.use(cookieParser());
 app.use(express.json());
-
 // config routers
 const userRouter = require("./routes/userRoutes");
 const mediaRouter = require("./routes/mediaRoutes");
@@ -37,5 +38,5 @@ async function initServer() {
 }
 
 initServer()
-  .then(() => app.listen(process.env.PORT))
+  .then(() => app.listen(PORT))
   .catch();
