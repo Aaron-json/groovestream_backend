@@ -1,18 +1,19 @@
 {
-  "name": "backend",
+  "name": "nodets",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "./dist/index.js",
+  "type": "module",
   "scripts": {
-    "dev": "nodemon --env-file=.env index.js",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node --env-file=.env index.js"
+    "dev": "tsx watch --env-file=.env src/index.ts",
+    "start": "node --env-file=.env ./dist/index.js",
+    "build": "tsc"
   },
-  "keywords": [],
+  "keywords": ["groovestream"],
   "author": "Aaron Mramba",
   "license": "ISC",
   "dependencies": {
-    "@google-cloud/storage": "^6.10.0",
+    "@google-cloud/storage": "^7.7.0",
     "bcrypt": "^5.1.0",
     "body-parser": "^1.20.2",
     "busboy": "^1.6.0",
@@ -20,8 +21,8 @@
     "cors": "^2.8.5",
     "express": "^4.18.2",
     "jsonwebtoken": "^9.0.0",
-    "mongodb": "^5.4.0",
-    "mongoose": "^7.1.0",
+    "mongodb": "^6.3.0",
+    "mongoose": "^8.1.1",
     "multer": "^1.4.5-lts.1",
     "music-metadata": "^8.1.4",
     "path": "^0.12.7",
@@ -29,6 +30,16 @@
     "uuid": "^9.0.0"
   },
   "devDependencies": {
-    "nodemon": "^2.0.22"
+    "@types/bcrypt": "^5.0.2",
+    "@types/busboy": "^1.5.3",
+    "@types/cookie-parser": "^1.4.6",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.5",
+    "@types/multer": "^1.4.11",
+    "@types/node": "^20.11.16",
+    "@types/uuid": "^9.0.8",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
   }
 }

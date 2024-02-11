@@ -4,14 +4,21 @@
 /.idea
 # env file
 .env
+# build files
+/dist
 # ignore json files in the root dit
 # except for package-json and package
 *.json
 !package.json
 !package-lock.json
+!tsconfig.json
 .gcloudignore
 app.yaml
 
 TODO.txt
 *.code-workspace
 *.pem
+
+# performance log files
+*.log
+vscode*
