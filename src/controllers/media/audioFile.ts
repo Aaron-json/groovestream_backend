@@ -1,24 +1,23 @@
-import { streamSharedPlaylistAudioFileToStorage } from "./sharedPlaylistAudioFile.js";
-import storage_client from "../../cloud_storage/storage_client.js";
+import storage_client, {
+  storageClient,
+} from "../../cloud_storage/storage_client.js";
 import Busboy from "busboy";
 import { PassThrough, Readable } from "stream";
-import { userModel } from "../../db/schemas/user/userSchema.js";
 import * as uuid from "uuid";
-import { updateQueryOptions } from "../user/userController.js";
 import sharp from "sharp";
-import * as music_metadata from "music-metadata";
-import { saveSharedPlaylistAudioFileToDb } from "./sharedPlaylistAudioFile.js";
-import { savePlaylistAudioFileToDb } from "./playlistAudioFile.js";
-import { deleteAudioFileStorage } from "./global.js";
-import { streamUserAudioFileToStorage } from "./global.js";
-import { Request, Response, Handler } from "express";
+import * as mm from "music-metadata";
+import { Request, Response } from "express";
 import { AuthRequest } from "../auth/middleware.js";
-import { InferSchemaType } from "mongoose";
-import { audioFileSchema } from "../../db/schemas/media/audioFile.js";
-export const uploadAudioFile = async (req: Request, res: Response) => {
+import { Query, queryFn } from "../../db/connection/connect.js";
+import { AudioFile, MediaType } from "../../types/media.js";
+import { pipeline as pipeline_async } from "stream/promises";
+
+export const uploadAudioFile = async (
+  req: Request,
+  res: Response,
+  mediaType: MediaType
+) => {
   // handles all audio file uploads
-  const { userID } = req as AuthRequest;
-  const { mediaType, playlistID } = req.params;
   // set up function scoped resources for the upload
   const busboy = Busboy({ headers: req.headers });
   let busboyFinished = false;
@@ -50,58 +49,31 @@ export const uploadAudioFile = async (req: Request, res: Response) => {
         const storageUploadOptions = {
           contentType: mimeType,
         };
-        let dbSaveFunc;
-        let storageStreamFunc;
 
-        switch (mediaType) {
-          case "0":
-            dbSaveFunc = async () => saveAudioFileDb(userID, audioFile);
-            storageStreamFunc = async () =>
-              streamUserAudioFileToStorage(
-                userID,
-                newID,
-                storageStream,
-                storageUploadOptions
-              );
-            break;
-          case "2":
-            dbSaveFunc = async () =>
-              savePlaylistAudioFileToDb(userID, playlistID, audioFile);
-            storageStreamFunc = async () =>
-              streamUserAudioFileToStorage(
-                userID,
-                newID,
-                storageStream,
-                storageUploadOptions
-              );
-            break;
-          case "4":
-            dbSaveFunc = async () =>
-              saveSharedPlaylistAudioFileToDb(playlistID, audioFile, userID);
-            storageStreamFunc = async () =>
-              streamSharedPlaylistAudioFileToStorage(
-                playlistID,
-                newID,
-                storageStream,
-                storageUploadOptions
-              );
-            break;
-          default:
-            throw new Error("Unknown media type");
-        }
-        const audioFileMetadata = parseAudioFileMetadata(metadataStream, {
-          filename,
-          encoding,
-          mimeType,
-          _id: newID,
-        });
+        const audioFileMetadata = parseStreamAudioFile(
+          metadataStream,
+          (req as AuthRequest).userID,
+          {
+            filename,
+            mimeType,
+            storageId: newID,
+            type: mediaType,
+            playlistId: req.params.playlistID
+              ? +req.params.playlistID
+              : undefined,
+          }
+        );
 
-        const uploadToStoragePromise = storageStreamFunc();
+        const uploadToStoragePromise = streamAudioFileToStorage(
+          newID,
+          storageStream,
+          storageUploadOptions
+        );
         const [audioFile, uploadToStorageResponse] = await Promise.all([
           audioFileMetadata,
           uploadToStoragePromise,
         ]);
-        await dbSaveFunc();
+        await saveAudioFileDb(audioFile);
       } catch (e) {
         // destroy the incoming file stream to avoid unclosed streams
         file.destroy(e as Error);
@@ -118,9 +90,9 @@ export const uploadAudioFile = async (req: Request, res: Response) => {
         // when uploading the last file
         if (failedUploads.length > 0) {
           console.log(failedUploads);
-          res.status(500).json(failedUploads);
+          return failedUploads;
         } else {
-          res.sendStatus(201);
+          return;
         }
       }
     }
@@ -133,31 +105,49 @@ export const uploadAudioFile = async (req: Request, res: Response) => {
 };
 
 /**
- * Takes an incoming audioFile stream and parses its metadata. Created a new object that follows the AudioFileSchema
- * @param {Stream.Readable} stream - Incoming passthrough stream with the audio file data
- * @param {Object} fileInfo - Object containing information such as filename and mimeType
- * @returns {Object} - Object containing all the metadata in the shape defined by the AudioFile Schema
+ * Takes an incoming audioFile stream and parses its metadata. Created a new object that follows
+ * the @AudioFile interface.
+ * @param stream  Incoming passthrough stream with the audio file data
+ * @param fileInfo  Object containing information such as filename and mimeType
+ * @returns Object containing all the metadata in the shape defined by the AudioFile Schema
  * */
-const parseAudioFileMetadata = async (
+async function parseStreamAudioFile(
   stream: Readable,
-  fileInfo: any
-): Promise<InferSchemaType<typeof audioFileSchema>> => {
-  const { filename, mimeType, _id } = fileInfo;
-  const newAudioFile: any = {
+  userID: number,
+  fileInfo: {
+    filename: string;
+    mimeType: string;
+    storageId: string;
+    type: number;
+    playlistId: number | undefined;
+  }
+) {
+  const { filename, mimeType, storageId, type, playlistId } = fileInfo;
+  const newAudioFile: Omit<AudioFile, "id" | "uploadedAt"> = {
     filename,
-    _id,
+    storageId,
+    type,
+    uploadedBy: userID,
+    playlistId,
+    format: {
+      mimeType,
+    },
   };
   try {
-    const parseStream = music_metadata.parseStream;
-    const metadata = await parseStream(stream, { mimeType });
+    // all the required fields are already set, error will cause to return what has been parsed
+    // up to that point
+    const metadata = await mm.parseStream(
+      stream,
+      { mimeType },
+      { duration: true }
+    );
     const { common, format } = metadata;
 
     newAudioFile.title = common?.title;
     newAudioFile.album = common?.album;
     newAudioFile.artists = common?.artists;
-    newAudioFile.trackNumber = common.track
-      ? `${common.track.no}/${common.track.of}`
-      : null;
+    newAudioFile.trackNumber = common.track.no;
+    newAudioFile.trackTotal = common.track.of;
     newAudioFile.duration = format?.duration;
     newAudioFile.format = {
       container: format.container,
@@ -174,89 +164,79 @@ const parseAudioFileMetadata = async (
         .toBuffer();
       newAudioFile.icon = {
         mimeType: "image/jpeg",
-        data: compressedIcon.toString("base64"),
+        data: compressedIcon,
       };
     }
   } catch (error) {
   } finally {
     return newAudioFile;
   }
-};
-
-/**
- * Delete audioFile from the database.
- * audioFile can only be of two types:
- * 0 - audioFile in the root.
- * 2 - audioFile in a playlist.
- * Throws error on failure.
- * @param {0 | 2} type - Type of the audioFile (can only be 0 or 2)
- * @param {String} userID - ID of the user document to update
- * @param {String} mediaID - ID of the media to delete
- */
-export const deleteAudioFileDb = async (userID: string, mediaID: string) => {
-  // delete from root
-  const updateReponse = await userModel.updateOne(
-    { _id: userID },
-    {
-      $pull: {
-        audioFiles: {
-          _id: mediaID,
-        },
-      },
-    },
-    updateQueryOptions
-  );
-  if (updateReponse.modifiedCount === 0) {
-    throw new Error("Error deleting audiofile from database");
-  }
-};
-
-export async function saveAudioFileDb(
-  userID: string,
-  audioFile: InferSchemaType<typeof audioFileSchema>
-) {
-  const updateResponse = await userModel.updateOne(
-    { _id: userID },
-    {
-      $push: {
-        audioFiles: audioFile,
-      },
-    },
-    updateQueryOptions
-  );
-  if (updateResponse.modifiedCount === 0) {
-    throw new Error("Error saving audiofile");
-  }
 }
 
-export const deleteAudioFile = async (userID: string, audioFileID: string) => {
-  await deleteAudioFileStorage(userID, audioFileID);
+export const deleteAudioFileDb = async (audioFileID: number) => {
+  const query: Query = {
+    queryStr: `DELETE FROM "audiofile"
+    WHERE id = $1;
+    `,
+    params: [audioFileID],
+  };
+  const response = await queryFn(query);
+};
+/**
+ *
+ * @param userID
+ * @param audioFile Values with a default value in the database are ommited from the type
+ */
+export async function saveAudioFileDb(
+  audioFile: Omit<AudioFile, "id" | "uploadedAt">
+) {
+  const query: Query = {
+    queryStr: `INSERT INTO "audiofile" (filename, type, storage_id, title, uploaded_by,
+      duration, playlist_id, album, artists, genre, mime_type, sample_rate, track_number,
+      container, codec, channels, bitrate, icon, icon_mime_type)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19);
+    `,
+    params: [
+      audioFile.filename,
+      audioFile.type,
+      audioFile.storageId,
+      audioFile.title,
+      audioFile.uploadedBy,
+      audioFile.duration,
+      audioFile.playlistId,
+      audioFile.album,
+      audioFile.artists,
+      audioFile.genre,
+      audioFile.format.mimeType,
+      audioFile.format.sampleRate,
+      audioFile.trackNumber,
+      audioFile.format.container,
+      audioFile.format.codec,
+      audioFile.format.channels,
+      audioFile.format.bitrate,
+      audioFile.icon?.data,
+      audioFile.icon?.mimeType,
+    ],
+  };
+  const res = await queryFn(query);
+}
+
+export const deleteAudioFile = async (
+  audioFileID: number,
+  storageID: string
+) => {
+  await deleteAudioFileStorage(storageID);
   // only if deleting file from storage was successful
   // delete it from db
-
-  await deleteAudioFileDb(userID, audioFileID);
+  await deleteAudioFileDb(audioFileID);
 };
 export const downloadAudioFile = async (req: Request, res: Response) => {
-  // protected route so userID is in res object
-  const { userID } = req as AuthRequest;
-  const { mediaType, audioFileID, playlistID } = req.params;
+  const { storageID } = req.params;
   try {
-    let bucket;
-    let file;
-    switch (mediaType) {
-      case "0":
-      case "2":
-        bucket = process.env.USER_DATA_BUCKET;
-        file = `${userID}/${audioFileID}`;
-        break;
-      case "4":
-        bucket = process.env.GLOBAL_AUDIOFILES_BUCKET;
-        file = `${playlistID}/${audioFileID}`;
-        break;
-      default:
-        return res.status(400).send({ message: "Invalid media type" });
-    }
-    const response = await storage_client.bucket(bucket).file(file).download();
+    const response = await storage_client
+      .bucket(process.env.GLOBAL_AUDIOFILES_BUCKET)
+      .file(storageID)
+      .download();
     res.send(response[0].toString("base64"));
     // pipeline will close streams on errors to prevent memory leaks
     // however we lose the ability to interact with res on errors
@@ -268,23 +248,93 @@ export const downloadAudioFile = async (req: Request, res: Response) => {
   }
 };
 /**
- * @param {string} userID
- * @param {string} audioFileID
- * @returns Document with the audiofile metadata
+ * Returns an audiofile's metadata in the appropriate shape to be sent
+ * to the user directly.
  */
-export async function getAudioFileInfo(userID: string, audioFileID: string) {
-  const user = await userModel.findById(userID, {
-    audioFiles: {
-      $elemMatch: {
-        _id: audioFileID,
-      },
+export async function getAudioFileInfo(
+  audioFileID: number
+): Promise<AudioFile> {
+  const query: Query = {
+    queryStr: `SELECT audiofile.*,
+    uploader.first_name AS uploaded_by_first_name,
+    uploader.last_name AS uploaded_by_last_name
+    FROM audiofile
+    JOIN "user" uploader ON audiofile.uploaded_by = uploader.id
+    WHERE "audiofile.id" = $1;`,
+    params: [audioFileID],
+  };
+  const res = await queryFn(query);
+  const dbAudioFile = res?.rows[0];
+  return parseDbAudioFile(dbAudioFile);
+}
+/**
+ * Takes an object containing rows from the audiofile table
+ * and parses it into its the appropriate shape.
+ * Expects field referencing the uploader to be populated with the following column names:
+ * uploaded_by_first_name, uploaded_by_last_name,
+ * @param dbAudioFile Object from the audiofile table in the database
+ * @returns
+ */
+export function parseDbAudioFile(dbAudioFile: any) {
+  const audioFile: AudioFile = {
+    id: dbAudioFile.id,
+    filename: dbAudioFile.filename,
+    storageId: dbAudioFile.storage_id,
+    album: dbAudioFile.album,
+    title: dbAudioFile.title,
+    artists: dbAudioFile.artists,
+    playlistId: dbAudioFile.playlist_id,
+    genre: dbAudioFile.genre,
+    duration: dbAudioFile.duration,
+    trackNumber: dbAudioFile.track_number,
+    trackTotal: dbAudioFile.track_total,
+    type: dbAudioFile.type,
+    uploadedBy: {
+      id: dbAudioFile.uploaded_by,
+      firstName: dbAudioFile.uploaded_by_first_name,
+      lastName: dbAudioFile.uploaded_by_last_name,
     },
-  });
-  if (!user) {
-    throw new Error("User does not exist");
-  }
-  if (user.audioFiles.length === 0) {
-    throw new Error("Audiofile does not exist");
-  }
-  return user.audioFiles[0];
+    uploadedAt: dbAudioFile.uploaded_at.toISOString(),
+    format: {
+      bitrate: dbAudioFile.bitrate,
+      channels: dbAudioFile.channels,
+      sampleRate: dbAudioFile.sample_rate,
+      mimeType: dbAudioFile.mime_type,
+      container: dbAudioFile.container,
+      codec: dbAudioFile.codec,
+    },
+    icon: dbAudioFile.icon
+      ? {
+          data: dbAudioFile.icon.toString("base64"),
+          mimeType: dbAudioFile.icon_mime_type,
+        }
+      : undefined,
+  };
+  return audioFile;
+}
+export async function streamAudioFileToStorage(
+  fileID: string,
+  readableStream: Readable,
+  options: any
+) {
+  const storageWriteStream = storageClient
+    .bucket(process.env.GLOBAL_AUDIOFILES_BUCKET)
+    .file(fileID)
+    .createWriteStream({
+      contentType: options.contentType,
+    });
+  await pipeline_async(readableStream, storageWriteStream);
+}
+/**
+ * Delete an audioFile object from storage. This action is non-reversible.
+ * Throws an error on failure
+ * @param audioFileId name of the file to delete, which is typically the ID of the file
+ */
+export async function deleteAudioFileStorage(audioFileId: string) {
+  // this method is for both playlist and non playlist audiofiles
+  // since they are stored in the same path in storage
+  return storageClient
+    .bucket(process.env.GLOBAL_AUDIOFILES_BUCKET)
+    .file(audioFileId)
+    .delete();
 }

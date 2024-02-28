@@ -3,7 +3,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 // Initialize google cloud storage client
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const storageClient = new Storage({
+export const storageClient = new Storage({
   keyFilename: path.join(
     __dirname,
     "../../" + process.env.G00GLE_CLOUD_KEY_FILE
@@ -24,4 +24,5 @@ export async function testConnect() {
     }
   }
 }
+
 export default storageClient;

@@ -5,11 +5,13 @@
   "main": "./dist/index.js",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch --env-file=.env src/index.ts",
+    "dev": "node --env-file=.env --import=tsx --watch-path=./src --watch ./src/index.ts",
     "start": "node --env-file=.env ./dist/index.js",
     "build": "tsc"
   },
-  "keywords": ["groovestream"],
+  "keywords": [
+    "groovestream"
+  ],
   "author": "Aaron Mramba",
   "license": "ISC",
   "dependencies": {
@@ -19,6 +21,7 @@
     "busboy": "^1.6.0",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
     "express": "^4.18.2",
     "jsonwebtoken": "^9.0.0",
     "mongodb": "^6.3.0",
@@ -26,6 +29,8 @@
     "multer": "^1.4.5-lts.1",
     "music-metadata": "^8.1.4",
     "path": "^0.12.7",
+    "pg": "^8.11.3",
+    "postgres": "^3.4.3",
     "sharp": "^0.32.6",
     "uuid": "^9.0.0"
   },
@@ -38,8 +43,9 @@
     "@types/jsonwebtoken": "^9.0.5",
     "@types/multer": "^1.4.11",
     "@types/node": "^20.11.16",
+    "@types/pg": "^8.11.0",
     "@types/uuid": "^9.0.8",
-    "tsx": "^4.7.0",
+    "tsx": "^4.7.1",
     "typescript": "^5.3.3"
   }
 }

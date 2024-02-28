@@ -1,81 +1,109 @@
-import mongoose from "mongoose";
-import { userModel } from "../../db/schemas/user/userSchema.js";
-import { updateQueryOptions } from "../user/userController.js";
-import { deleteAudioFileStorage } from "./global.js";
-import { deletePlaylistAudioFileDb } from "./playlistAudioFile.js";
+import { deleteAudioFileStorage } from "./audioFile.js";
+import { Playlist } from "../../types/media.js";
+import { Query, queryFn } from "../../db/connection/connect.js";
+import { parseDbAudioFile } from "./audioFile.js";
 
-export const getPlaylistInfo = async (userID: string, playlistID: string) => {
-  const user = await userModel.findById(userID, {
-    playlists: {
-      $elemMatch: {
-        _id: playlistID,
-      },
+export async function getPlaylistInfo(playlistID: number): Promise<Playlist> {
+  const query: Query = {
+    queryStr: `SELECT playlist.*,
+    owner.first_name AS owner_first_name,
+    owner.last_name AS owner_last_name
+    FROM playlist
+    JOIN user "owner" ON playlist.owner = owner.id
+    WHERE playlist.id = $1;
+    `,
+    params: [playlistID],
+  };
+  const response = await queryFn(query);
+  const dbPlaylist = response?.rows[0];
+  return parseDbPlaylist(dbPlaylist);
+}
+export async function getPlaylistAudioFiles(playlistID: number) {
+  const query: Query = {
+    queryStr: `
+    SELECT audiofile.*,
+    uploader.first_name AS uploaded_by_first_name,
+    uploader.last_name AS uploaded_by_last_name
+    FROM audiofile
+    JOIN "user" uploader ON audiofile.uploaded_by = uploader.id
+    WHERE playlist_id = $1;
+    `,
+    params: [playlistID],
+  };
+  const dbAudioFiles = (await queryFn(query))!.rows;
+  const audiofiles = [];
+  for (const dbAudioFile of dbAudioFiles) {
+    audiofiles.push(parseDbAudioFile(dbAudioFile));
+  }
+  return audiofiles;
+}
+export function parseDbPlaylist(dbPlaylist: any) {
+  const playlist: Playlist = {
+    id: dbPlaylist.id,
+    name: dbPlaylist.name,
+    type: dbPlaylist.type,
+    owner: {
+      id: dbPlaylist.owner,
+      firstName: dbPlaylist.owner_first_name,
+      lastName: dbPlaylist.owner_last_name,
     },
-  });
-  if (!user) {
-    throw new Error("user not found");
+    createdAt: dbPlaylist.created_at.toISOString(),
+  };
+  return playlist;
+}
+export async function deletePlaylist(userID: number, playlistID: string) {
+  // for playlist members, they will cascade after playlist
+  // is deleted.
+  let query: Query = {
+    queryStr: `
+    SELECT storage_id from "audiofile"
+    WHERE playlist_id = $1
+    `,
+    params: [playlistID],
+  };
+  let res = await queryFn(query);
+  for (const row of res?.rows!) {
+    // delete all songs from storage
+    await deleteAudioFileStorage(row.storage_id);
   }
-  if (user.playlists.length === 0) {
-    throw new Error("Playlist not found");
-  }
-  return user.playlists[0];
-};
+  query = {
+    // delete using a transaction to maintain data integrity
+    queryStr: `
+    BEGIN;
+    DELETE FROM audiofiles WHERE playlist_id = $1;
+    DELETE FROM playlists WHERE id = $1;
+    COMMIT;
+    `,
+    params: [playlistID],
+  };
+  res = await queryFn(query);
+}
 
-export const deletePlaylist = async (
-  userID: string,
-  playlistID: string,
-  session?: mongoose.mongo.ClientSession
-) => {
-  // get the bucket and make the query to delete items
-  console.log(userID, playlistID);
-  const user = await userModel.findById(userID, {
-    playlists: {
-      $elemMatch: {
-        _id: playlistID,
-      },
-    },
-    _id: 0,
-  });
-  console.log(user);
-  if (!user) {
-    throw new Error("User not found");
-  }
-  if (user.playlists?.length === 0) {
-    throw new Error("Playlist not found");
-  }
-  // get the playlist object to delete from the document
-  const playlist = user.playlists[0];
-  // delete every song in the playlist from storage then from database
-  for (let i = 0; i < playlist.audioFiles.length; i++) {
-    let audioFileID = playlist.audioFiles[i]._id?.toString()!;
-    await deleteAudioFileStorage(userID, audioFileID);
-    await deletePlaylistAudioFileDb(userID, playlistID, audioFileID);
-  }
-  // erase the whole playlist from the user playlists lists
-  await userModel.updateOne(
-    {
-      _id: userID,
-    },
-    {
-      $pull: {
-        playlists: {
-          _id: playlistID,
-        },
-      },
-    }
-  );
-};
+export async function createPlaylist(
+  userID: number,
+  name: string,
+  type: Playlist["type"]
+) {
+  const query: Query = {
+    queryStr: `
+    INSERT INTO "playlist" (name, type, owner)
+    VALUES ($1, $2, $3)
+    `,
+    // for non-shared playlsists, owner and created_by will reference the same user
+    // for shared playlists, created_by will reference the original owner while owner will reference,
+    // the current owner
+    params: [name, type, userID],
+  };
+}
 
-export const createPlaylist = async (userID: string, name: string) => {
-  const query = await userModel.updateOne(
-    { _id: userID },
-    {
-      $push: {
-        playlists: {
-          name,
-        },
-      },
-    },
-    updateQueryOptions
-  );
-};
+export async function changePlaylistName(playlistID: number, newName: string) {
+  const query: Query = {
+    queryStr: `
+    UPDATE "playlist"
+    SET name = $1,
+    WHERE id = $2
+    `,
+    params: [newName, playlistID],
+  };
+  const res = await queryFn(query);
+}

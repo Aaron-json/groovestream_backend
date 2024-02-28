@@ -1,5 +1,4 @@
-import { userModel } from "../../db/schemas/user/userSchema.js";
-import { compareSync } from "bcrypt";
+import { compare, compareSync } from "bcrypt";
 import {
   AuthRequest,
   createAccessToken,
@@ -7,33 +6,28 @@ import {
   refreshTokenCookieOptions,
 } from "../auth/middleware.js";
 import { Request, Response } from "express";
-export const login = async (req: Request, res: Response) => {
-  try {
-    const { email, password } = req.body; // get password and email from request
-    const query = await userModel.find(
-      { email },
-      { password: 1 },
-      { lean: true }
-    );
-    if (query.length === 0) {
-      throw new Error(`User with email: "${email}" does not exist`);
-    } else if (query.length > 1) {
-      throw new Error(`Multiple users with email: "${email}" found`);
-    }
-
-    const user = query[0];
-    const validLogin = compareSync(password, user.password);
-    if (!validLogin) {
-      return res.sendStatus(403);
-    }
-    const accessToken = await createAccessToken(user._id);
-    const refreshToken = await createRefreshToken(user._id);
-    // send access token in json and the refresh token as a httpOnly cookie
-    res.cookie("refreshToken", refreshToken, refreshTokenCookieOptions);
-    res.json({ accessToken });
-  } catch (e) {
-    res.status(400).send(e);
+import { Query, queryFn } from "../../db/connection/connect.js";
+export const login = async (email: number, password: string) => {
+  const query: Query = {
+    queryStr: `
+    SELECT password_hash, id from "user"
+    WHERE email = $1;
+    `,
+    params: [email],
+  };
+  const response = await queryFn(query);
+  if (response?.rowCount === 0) {
+    throw new Error(`User with email '${email}' does not exist`);
   }
+
+  const valid = await compare(password, response?.rows[0].password_hash);
+  if (!valid) {
+    throw new Error(`Login failed`);
+  }
+  const userId = response?.rows[0].id;
+  const accessToken = await createAccessToken(userId);
+  const refreshToken = await createRefreshToken(userId);
+  return { accessToken, refreshToken };
 };
 
 export const logout = async (req: Request, res: Response) => {

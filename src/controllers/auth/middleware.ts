@@ -1,14 +1,14 @@
 import jsonwebtoken from "jsonwebtoken";
 import { Request, Response, CookieOptions } from "express";
 export interface AuthRequest extends Request {
-  userID: string;
+  userID: number;
 }
 enum Token {
   AccessToken,
   RefreshToken,
 }
 export interface TokenPayload {
-  userID: string;
+  userID: number;
 }
 export const refreshTokenCookieOptions: CookieOptions = {
   httpOnly: true,
@@ -17,7 +17,7 @@ export const refreshTokenCookieOptions: CookieOptions = {
   secure: process.env.NODE_ENV === "production",
 };
 
-export function createAccessToken(userID: string) {
+export function createAccessToken(userID: number) {
   return new Promise<string>((resolve, reject) => {
     jsonwebtoken.sign(
       { userID },
@@ -39,7 +39,7 @@ export function createAccessToken(userID: string) {
   });
 }
 
-export function createRefreshToken(userID: string) {
+export function createRefreshToken(userID: number) {
   return new Promise<string>((resolve, reject) => {
     jsonwebtoken.sign(
       { userID },

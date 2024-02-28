@@ -10,7 +10,6 @@ declare global {
       G00GLE_CLOUD_KEY_FILE: string;
       GOOGLE_CLOUD_TEST_BUCKET: string;
       GOOGLE_CLOUD_PROJECT_ID: string;
-      GOOGLE_CLOUD_DATABASE_BUCKET: string;
       ACCESS_TOKEN_SECRET: string;
       REFRESH_TOKEN_SECRET: string;
       MONGODB_USERNAME: string;
@@ -18,6 +17,10 @@ declare global {
       DATABASE_NAME: string;
       USER_DATA_BUCKET: string;
       GLOBAL_AUDIOFILES_BUCKET: string;
+      PG_DATABASE_NAME: string;
+      PG_USER: string;
+      PG_PASSWORD: string;
+      PG_HOST: string;
     }
   }
 }
