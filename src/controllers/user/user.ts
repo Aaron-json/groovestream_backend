@@ -6,10 +6,9 @@ import { AuthRequest } from "../auth/middleware.js";
 import { Query, queryFn } from "../../db/connection/connect.js";
 import { ProfilePicture, User } from "../../types/user.js";
 import { ApiError } from "@google-cloud/storage";
-export const updateQueryOptions = {
-  runValidators: true,
-  new: true,
-};
+import * as pg from "pg";
+import { ServerError } from "../../types/errors.js";
+import { Server } from "http";
 
 export async function getUser(
   userId: number,
@@ -17,7 +16,8 @@ export async function getUser(
 ): Promise<User> {
   const query: Query = {
     queryStr: `
-    SELECT * FROM "user"
+    SELECT first_name, last_name, id, username, date_joined, date_of_birth
+    FROM "user"
     WHERE id = $1
     `,
     params: [userId],
@@ -31,27 +31,61 @@ export async function getUser(
 }
 
 export const createNewUser = async (userInfo: any) => {
-  const passwordHash = await hash(userInfo.params.password, 10);
-  const queryCfg: Query = {
-    queryStr: `
-      INSERT INTO "user" (first_name, last_name, email, date_of_birth, password_hash)
+  try {
+    const passwordHash = await hash(userInfo.password, 10);
+    const queryCfg: Query = {
+      queryStr: `
+      INSERT INTO "user" (first_name, last_name, username, date_of_birth, password_hash)
       VALUES ($1, $2, $3, $4, $5);
       `,
-    params: [
-      userInfo.params.firstName,
-      userInfo.params.lastName,
-      userInfo.params.email,
-      userInfo.params.dateOfBirth,
-      passwordHash,
-    ],
-  };
-  const response = await queryFn(queryCfg);
+      params: [
+        userInfo.firstName,
+        userInfo.lastName,
+        userInfo.username,
+        userInfo.dateOfBirth,
+        passwordHash,
+      ],
+    };
+    const response = await queryFn(queryCfg);
+  } catch (error: any) {
+    if (error.code === "23505") {
+      throw new ServerError("Username is already in use", 400, "INV01");
+    }
+    throw error;
+  }
 };
+export const updateUserInfo = async (userID: number, updates: any) => {
+  const allowedFieldsToDbMap: any = {
+    firstName: "first_name",
+    lastName: "last_name",
+    username: "username",
+    dateOfBirth: "date_of_birth",
+  };
 
-export const updateUserInfo = async (
-  userID: number,
-  updates: Omit<User, "id" | "dateJoined">
-) => {};
+  const columns = Object.keys(updates);
+  const params = [];
+  const updateStrs = [];
+  let counter = 1;
+  for (const column of columns) {
+    if (!allowedFieldsToDbMap[column]) {
+      const message = `Column ${column} is not allowed`;
+      throw new ServerError(message, 400, "INV01");
+    }
+    updateStrs.push(`${allowedFieldsToDbMap[column]} = $${counter}`);
+    params.push(updates[column]);
+    ++counter;
+  }
+  params.push(userID);
+  const query: Query = {
+    queryStr: `
+    UPDATE "user"
+    SET ${updateStrs.join(", ")}
+    WHERE id = $${params.length}
+    `,
+    params,
+  };
+  const res = await queryFn(query);
+};
 
 export async function usernameExists(username: string) {
   const query: Query = {
@@ -65,6 +99,7 @@ export async function usernameExists(username: string) {
   const res = await queryFn(query);
   return res.rowCount > 0;
 }
+
 export const getProfilePicture = async (userID: number) => {
   try {
     const file = storage_client
@@ -112,11 +147,7 @@ export const uploadProfilePhoto = async (
 
 export const deleteUser = async (req: Request, res: Response) => {
   const { userID } = req as AuthRequest;
-  try {
-    res.sendStatus(500);
-  } catch (e) {
-    res.status(500).send(e);
-  }
+  res.sendStatus(500);
 };
 
 export function parseDbUser(dbUser: any) {
@@ -124,7 +155,7 @@ export function parseDbUser(dbUser: any) {
     id: dbUser.id,
     firstName: dbUser.first_name,
     lastName: dbUser.last_name,
-    email: dbUser.email,
+    username: dbUser.username,
     dateJoined: dbUser.date_joined.toISOString(),
     dateOfBirth: dbUser.date_of_birth.toISOString(),
   };

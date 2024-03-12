@@ -10,7 +10,7 @@ export const storageClient = new Storage({
   ),
   projectId: process.env.GOOGLE_CLOUD_PROJECT_ID,
 });
-export async function testConnect() {
+export async function storageTestConnect() {
   // check is the two buckets we use to store and retrieve data exist
   // to server as a test since the library does not have pinging functionality
   const exists = await Promise.all([

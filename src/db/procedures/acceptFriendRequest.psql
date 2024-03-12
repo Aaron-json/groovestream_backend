@@ -1,0 +1,29 @@
+CREATE OR REPLACE PROCEDURE acceptFriendRequest(
+userID INTEGER,
+senderID INTEGER,
+requestID INTEGER
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    -- Delete the friend_request
+    DELETE FROM "friend_request"
+    WHERE id = requestID;
+
+    -- Check if the DELETE affected any rows
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Friend request not found'
+        USING ERRCODE = 'INV01';
+    END IF;
+
+    -- Delete any friend requests that the accepting user
+    -- sent to the sender if any since they will now be friends
+    DELETE FROM "friend_request"
+    WHERE "to" = senderID
+    AND "from" = userID;
+
+    -- Insert the user into the playlist
+    INSERT INTO "friendship" (user_1, user_2)
+    VALUES (userID, senderID);
+END;
+$$;

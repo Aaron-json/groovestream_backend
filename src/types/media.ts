@@ -1,27 +1,14 @@
 import { NullOrUndefined } from "./global.js";
 import { PublicUserInfo } from "./user.js";
-// values of the "type" property of each media type
+
 export enum MediaType {
   AudioFile,
   Playlist,
-  PlaylistAudioFile,
-  SharedPlaylist,
-  SharedPlaylistAudioFile,
 }
 
 export interface AudioFile {
-  // media schemas contain a type to identify them
-  // when types are mixed in the same object or array.
-  // 0 - audioFile
-  // 1 - playlist
-  // 2 - playlist audioFile
-  // 3 - shared playlist
-  // 4 - shared playlist audioFile
   id: number;
-  type:
-    | MediaType.AudioFile
-    | MediaType.PlaylistAudioFile
-    | MediaType.SharedPlaylistAudioFile;
+  type: MediaType.AudioFile;
   storageId: string;
   filename: string;
   uploadedAt: string;
@@ -50,12 +37,10 @@ export interface AudioFile {
   };
 }
 
-// Playlists
-
 export interface Playlist {
   id: number;
+  type: MediaType.Playlist;
   name: string;
-  type: MediaType.Playlist | MediaType.SharedPlaylist;
   owner: PublicUserInfo;
   createdAt: string;
 }

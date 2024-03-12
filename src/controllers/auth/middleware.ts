@@ -31,7 +31,6 @@ export function createAccessToken(userID: number) {
         if (err) {
           reject(err);
         } else {
-          console.log();
           resolve(payload!);
         }
       }
@@ -105,7 +104,6 @@ export async function verifyAccessToken(
     // using a valid refresh token.
     // the 401 status is reserved for this middleware ONLY to make it clear
     // when the client is supposed to refresh or not.
-    console.log(e);
     res.sendStatus(401);
   }
 }

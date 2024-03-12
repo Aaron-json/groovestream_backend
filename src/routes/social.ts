@@ -34,7 +34,7 @@ router.get("/friend-requests", async function (req, res) {
 });
 router.post("/friend-request", async (req, res) => {
   try {
-    await sendFriendRequest((req as AuthRequest).userID, req.body.email);
+    await sendFriendRequest((req as AuthRequest).userID, req.body.username);
     res.sendStatus(200);
   } catch (error) {
     res.status(500).json(error);
@@ -64,11 +64,12 @@ router.get("/friends", async (req, res) => {
   }
 });
 
-router.post("/friend/:requestID", async (req, res) => {
+router.post("/friend/:requestID/:senderID", async (req, res) => {
   try {
     await acceptFriendRequest(
       (req as unknown as AuthRequest).userID,
-      +req.params.requestID
+      +req.params.requestID,
+      +req.params.senderID
     );
     res.sendStatus(200);
   } catch (error) {
@@ -99,8 +100,8 @@ router.post("/playlist-invite/:playlistID", async (req: any, res) => {
   try {
     await sendPlaylistInvite(
       (req as AuthRequest).userID,
-      req.body.email,
-      req.params.playlistID
+      req.body.username,
+      +req.params.playlistID
     );
     res.sendStatus(200);
   } catch (error) {

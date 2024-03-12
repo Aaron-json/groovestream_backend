@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "node --env-file=.env --import=tsx --watch-path=./src --watch ./src/index.ts",
     "start": "node --env-file=.env ./dist/index.js",
-    "build": "tsc"
+    "build:dev": "tsc"
   },
   "keywords": [
     "groovestream"
@@ -41,6 +41,7 @@
     "@types/node": "^20.11.16",
     "@types/pg": "^8.11.0",
     "@types/uuid": "^9.0.8",
+    "tsx": "^4.7.1",
     "typescript": "^5.3.3"
   }
 }

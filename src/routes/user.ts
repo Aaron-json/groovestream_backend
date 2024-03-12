@@ -13,6 +13,7 @@ import {
   AuthRequest,
   verifyAccessToken,
 } from "../controllers/auth/middleware.js";
+import { ServerError } from "../types/errors.js";
 
 router
   .route("/")
@@ -20,7 +21,10 @@ router
     try {
       await createNewUser(req.body);
       res.sendStatus(201);
-    } catch (error) {
+    } catch (error: any) {
+      if (error instanceof ServerError) {
+        return res.status(error.httpCode).json(error);
+      }
       return res.status(500).json(error);
     }
   })
@@ -34,11 +38,14 @@ router
     }
   })
   .delete(verifyAccessToken, deleteUser)
-  .put(verifyAccessToken, async (req, res) => {
-    res.status(500).json({ message: "Unimplemented" });
+  .patch(verifyAccessToken, async (req, res) => {
     try {
-      // const res = updateUserInfo((req as AuthRequest).userID, updates: {});
-    } catch (error) {}
+      await updateUserInfo((req as AuthRequest).userID, req.body);
+      res.sendStatus(200);
+    } catch (error) {
+      console.log(error);
+      res.status(500).json(error);
+    }
   });
 
 const upload = multer({

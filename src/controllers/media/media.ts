@@ -4,78 +4,23 @@
  * Ex. downloading a user's audio file. These are stores in the sama path in storage
  */
 import { Query, queryFn } from "../../db/connection/connect.js";
-import { AudioFile, Playlist } from "../../types/media.js";
+import { AudioFile } from "../../types/media.js";
 import { parseDbAudioFile } from "./audioFile.js";
-import { parseDbPlaylist } from "./playlist.js";
-/**
- * @param {string} userID
- * @returns Array of all media that the user has in their library
- */
-export async function getAllUserMedia(userID: number) {
-  const params = [userID];
-  const audioFileQuery: Query = {
-    queryStr: `
-    SELECT audiofile.*,
-    uploader.first_name AS uploaded_by_first_name,
-    uploader.first_name AS uploaded_by_first_name
-    FROM audiofile
-    JOIN "user" uploader ON audiofile.uploaded_by = uploader.id
-    WHERE 
-    (type = 0 AND uploaded_by = $1)
-    `,
-    params,
-  };
-  const playlistQuery: Query = {
-    queryStr: `
-    SELECT playlist.*,
-    owner.first_name AS owner_first_name,
-    owner.last_name AS owner_last_name
-    FROM playlist
-    JOIN "user" owner On playlist.owner = owner.id
-    WHERE 
-    (playlist.type = 1 AND playlist.owner = $1)
-    OR
-    (playlist.type = 3 AND playlist.owner = $1)
-    OR
-    (playlist.id IN  
-      (SELECT (playlist_id) FROM playlist_member
-      WHERE user_id = $1
-      )
-      );
-    `,
-    params,
-  };
-  const [audioFileRes, playlistRes] = await Promise.all([
-    queryFn(audioFileQuery),
-    queryFn(playlistQuery),
-  ]);
-  const audioFiles = audioFileRes!.rows;
-  const playlists = playlistRes!.rows;
-  const allMedia: (AudioFile | Playlist)[] = [];
-  for (const audioFile of audioFiles) {
-    allMedia.push(parseDbAudioFile(audioFile));
-  }
-  for (const playlist of playlists) {
-    allMedia.push(parseDbPlaylist(playlist));
-  }
-  return allMedia;
-}
-
-export async function mostPlayedAudioFiles(userID: number) {
+export async function mostPlayedAudioFiles(userID: number, limit: number) {
   const query: Query = {
     queryStr: `
     SELECT
     audiofile.*,
-    uploader.first_name AS uploaded_by_first_name,
-    uploader.last_name AS uploaded_by_last_name,
-    COUNT(audiofile.id) AS playback_count
+    uploader.username AS uploaded_by_username,
+    COUNT(*) AS playback_count
      FROM audiofile
      JOIN listening_history ON audiofile.id = listening_history.audiofile_id
      JOIN "user" uploader ON audiofile.uploaded_by = uploader.id
      WHERE listening_history.user_id = $1
-     GROUP BY audiofile.id, uploaded_by_first_name, uploaded_by_last_name
+     GROUP BY audiofile.id, uploaded_by_username
+     LIMIT $2
     `,
-    params: [userID],
+    params: [userID, limit],
   };
   const res = await queryFn(query);
   const rows = res?.rows!;
@@ -87,30 +32,28 @@ export async function mostPlayedAudioFiles(userID: number) {
   return results;
 }
 
-export async function listeningHistory(
+export async function getListeningHistory(
   userID: number,
-  skip?: number,
-  limit?: number
+  limit: number,
+  skip?: number
 ) {
-  let skipQuery;
-  if (limit === undefined || skip === undefined) {
-    skipQuery = "";
-  } else {
-    skipQuery = `LIMIT ${limit} OFFSET ${skip}`;
+  if (skip === undefined) {
+    skip = 0;
   }
+
   const query: Query = {
     queryStr: `
     SELECT audiofile.*,
-    uploader.first_name AS uploaded_by_first_name,
-    uploader.last_name AS uploaded_by_last_name
-    FROM listening_history
-    jOIN audiofile ON listening_history.audiofile_id = audiofile.id
+    uploader.username AS uploaded_by_username
+    FROM listening_history lh
+    JOIN audiofile ON audiofile.id = lh.audiofile_id
     JOIN "user" uploader ON audiofile.uploaded_by = uploader.id
-    WHERE listening_history.user_id = $1
-    ORDER BY listening_history.played_at DESC
-    ${skipQuery}
+    WHERE lh.user_id = $1
+    GROUP BY audiofile.id, uploaded_by_username
+    ORDER BY max(lh.played_at) DESC
+    LIMIT $2 OFFSET $3;
     `,
-    params: [userID],
+    params: [userID, limit, skip],
   };
   const resutls: AudioFile[] = [];
   const res = await queryFn(query);
@@ -119,4 +62,15 @@ export async function listeningHistory(
     resutls.push(audiofile);
   }
   return resutls;
+}
+
+export async function addListeningHistory(userID: number, audioFileID: number) {
+  const query: Query = {
+    queryStr: `
+    INSERT INTO "listening_history" (user_id, audiofile_id)
+    VALUES ($1, $2);
+    `,
+    params: [userID, audioFileID],
+  };
+  await queryFn(query);
 }

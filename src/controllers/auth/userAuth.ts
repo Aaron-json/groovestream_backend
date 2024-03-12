@@ -1,4 +1,4 @@
-import { compare, compareSync } from "bcrypt";
+import { compare } from "bcrypt";
 import {
   AuthRequest,
   createAccessToken,
@@ -7,17 +7,17 @@ import {
 } from "../auth/middleware.js";
 import { Request, Response } from "express";
 import { Query, queryFn } from "../../db/connection/connect.js";
-export const login = async (email: number, password: string) => {
+export const login = async (username: number, password: string) => {
   const query: Query = {
     queryStr: `
     SELECT password_hash, id from "user"
-    WHERE email = $1;
+    WHERE username = $1;
     `,
-    params: [email],
+    params: [username],
   };
   const response = await queryFn(query);
   if (response?.rowCount === 0) {
-    throw new Error(`User with email '${email}' does not exist`);
+    throw new Error(`User with username '${username}' does not exist`);
   }
 
   const valid = await compare(password, response?.rows[0].password_hash);

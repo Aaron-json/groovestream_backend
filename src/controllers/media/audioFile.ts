@@ -12,13 +12,12 @@ import { Query, queryFn } from "../../db/connection/connect.js";
 import { AudioFile, MediaType } from "../../types/media.js";
 import { pipeline as pipeline_async } from "stream/promises";
 
-export const uploadAudioFile = async (
-  req: Request,
-  res: Response,
-  mediaType: MediaType
-) => {
+export const uploadAudioFile = async (req: Request, res: Response) => {
   // handles all audio file uploads
   // set up function scoped resources for the upload
+  if (!req.headers["content-type"]?.includes("multipart/form-data")) {
+    return res.sendStatus(415);
+  }
   const busboy = Busboy({ headers: req.headers });
   let busboyFinished = false;
   let fileCounter = 0;
@@ -50,33 +49,31 @@ export const uploadAudioFile = async (
           contentType: mimeType,
         };
 
-        const audioFileMetadata = parseStreamAudioFile(
+        const metadata = parseStreamAudioFile(
           metadataStream,
           (req as AuthRequest).userID,
           {
             filename,
             mimeType,
             storageId: newID,
-            type: mediaType,
-            playlistId: req.params.playlistID
-              ? +req.params.playlistID
-              : undefined,
+            playlistId: +req.params.playlistID,
           }
         );
 
-        const uploadToStoragePromise = streamAudioFileToStorage(
+        const storageUpload = streamAudioFileToStorage(
           newID,
           storageStream,
           storageUploadOptions
         );
         const [audioFile, uploadToStorageResponse] = await Promise.all([
-          audioFileMetadata,
-          uploadToStoragePromise,
+          metadata,
+          storageUpload,
         ]);
         await saveAudioFileDb(audioFile);
       } catch (e) {
         // destroy the incoming file stream to avoid unclosed streams
         file.destroy(e as Error);
+        console.log(e);
         failedUploads.push({
           filename,
           error: e,
@@ -90,9 +87,9 @@ export const uploadAudioFile = async (
         // when uploading the last file
         if (failedUploads.length > 0) {
           console.log(failedUploads);
-          return failedUploads;
+          res.status(500).json(failedUploads);
         } else {
-          return;
+          return res.sendStatus(201);
         }
       }
     }
@@ -118,15 +115,13 @@ async function parseStreamAudioFile(
     filename: string;
     mimeType: string;
     storageId: string;
-    type: number;
-    playlistId: number | undefined;
+    playlistId: number;
   }
 ) {
-  const { filename, mimeType, storageId, type, playlistId } = fileInfo;
-  const newAudioFile: Omit<AudioFile, "id" | "uploadedAt"> = {
+  const { filename, mimeType, storageId, playlistId } = fileInfo;
+  const newAudioFile: Omit<AudioFile, "id" | "uploadedAt" | "type"> = {
     filename,
     storageId,
-    type,
     uploadedBy: userID,
     playlistId,
     format: {
@@ -180,7 +175,7 @@ export const deleteAudioFileDb = async (audioFileID: number) => {
     `,
     params: [audioFileID],
   };
-  const response = await queryFn(query);
+  const res = await queryFn(query);
 };
 /**
  *
@@ -188,17 +183,16 @@ export const deleteAudioFileDb = async (audioFileID: number) => {
  * @param audioFile Values with a default value in the database are ommited from the type
  */
 export async function saveAudioFileDb(
-  audioFile: Omit<AudioFile, "id" | "uploadedAt">
+  audioFile: Omit<AudioFile, "id" | "uploadedAt" | "type">
 ) {
   const query: Query = {
-    queryStr: `INSERT INTO "audiofile" (filename, type, storage_id, title, uploaded_by,
+    queryStr: `INSERT INTO "audiofile" (filename, storage_id, title, uploaded_by,
       duration, playlist_id, album, artists, genre, mime_type, sample_rate, track_number,
       container, codec, channels, bitrate, icon, icon_mime_type)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19);
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18);
     `,
     params: [
       audioFile.filename,
-      audioFile.type,
       audioFile.storageId,
       audioFile.title,
       audioFile.uploadedBy,
@@ -218,7 +212,9 @@ export async function saveAudioFileDb(
       audioFile.icon?.mimeType,
     ],
   };
+
   const res = await queryFn(query);
+  console.log(res);
 }
 
 export const deleteAudioFile = async (
@@ -256,8 +252,7 @@ export async function getAudioFileInfo(
 ): Promise<AudioFile> {
   const query: Query = {
     queryStr: `SELECT audiofile.*,
-    uploader.first_name AS uploaded_by_first_name,
-    uploader.last_name AS uploaded_by_last_name
+    uploader.username AS uploaded_by_username
     FROM audiofile
     JOIN "user" uploader ON audiofile.uploaded_by = uploader.id
     WHERE "audiofile.id" = $1;`,
@@ -269,7 +264,7 @@ export async function getAudioFileInfo(
 }
 /**
  * Takes an object containing rows from the audiofile table
- * and parses it into its the appropriate shape.
+ * and parses it into its the appropriate shape to be sent to the client.
  * Expects field referencing the uploader to be populated with the following column names:
  * uploaded_by_first_name, uploaded_by_last_name,
  * @param dbAudioFile Object from the audiofile table in the database
@@ -278,6 +273,7 @@ export async function getAudioFileInfo(
 export function parseDbAudioFile(dbAudioFile: any) {
   const audioFile: AudioFile = {
     id: dbAudioFile.id,
+    type: MediaType.AudioFile,
     filename: dbAudioFile.filename,
     storageId: dbAudioFile.storage_id,
     album: dbAudioFile.album,
@@ -288,11 +284,9 @@ export function parseDbAudioFile(dbAudioFile: any) {
     duration: dbAudioFile.duration,
     trackNumber: dbAudioFile.track_number,
     trackTotal: dbAudioFile.track_total,
-    type: dbAudioFile.type,
     uploadedBy: {
       id: dbAudioFile.uploaded_by,
-      firstName: dbAudioFile.uploaded_by_first_name,
-      lastName: dbAudioFile.uploaded_by_last_name,
+      username: dbAudioFile.uploaded_by_username,
     },
     uploadedAt: dbAudioFile.uploaded_at.toISOString(),
     format: {

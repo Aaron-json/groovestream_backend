@@ -32,18 +32,24 @@ export interface QueryResponse {
   rowCount: number;
 }
 export async function queryFn(query: Query): Promise<QueryResponse> {
+  if (!pool) {
+    throw new Error("Connection pool not initialized");
+  }
   let res;
   if (query.params) {
-    res = await pool?.query(query.queryStr, query.params);
+    res = await pool.query(query.queryStr, query.params);
   } else {
-    res = await pool?.query(query.queryStr);
+    res = await pool.query(query.queryStr);
   }
-  return { rows: res!.rows, rowCount: res?.rowCount ? res!.rowCount : 0 };
+  return { rows: res.rows, rowCount: res.rowCount ? res.rowCount : 0 };
 }
 /**
  * Used to get a client to execute queries in a row
  * or in a transaction.
  */
 export async function getClient() {
-  return pool?.connect();
+  if (!pool) {
+    throw new Error("Connection pool not initialized");
+  }
+  return pool.connect();
 }
