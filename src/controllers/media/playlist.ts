@@ -14,21 +14,34 @@ export async function getPlaylistInfo(playlistID: number): Promise<Playlist> {
     params: [playlistID],
   };
   const response = await queryFn(query);
-  const dbPlaylist = response?.rows[0];
+  const dbPlaylist = response.rows[0];
   return parseDbPlaylist(dbPlaylist);
 }
-export async function getPlaylistAudioFiles(playlistID: number) {
+export async function getPlaylistAudioFiles(playlistID: number, searchText? : string | undefined) {
+  let params;
+  let searchQuery;
+  if (searchText){
+    params = [playlistID, searchText]
+    searchQuery = `
+    AND "search" @@ websearch_to_tsquery($2)
+    `
+  } else {
+    params = [playlistID]
+    searchQuery = ''
+  }
   const query: Query = {
     queryStr: `
     SELECT audiofile.*,
     uploader.username AS uploaded_by_username
     FROM audiofile
     JOIN "user" uploader ON audiofile.uploaded_by = uploader.id
-    WHERE playlist_id = $1;
+    WHERE playlist_id = $1
+    ${searchQuery}
+    ;
     `,
-    params: [playlistID],
+    params,
   };
-  const dbAudioFiles = (await queryFn(query))!.rows;
+  const dbAudioFiles = (await queryFn(query)).rows;
   const audiofiles: AudioFile[] = [];
   for (const dbAudioFile of dbAudioFiles) {
     audiofiles.push(parseDbAudioFile(dbAudioFile));
@@ -50,22 +63,15 @@ export function parseDbPlaylist(dbPlaylist: any) {
 }
 export async function deletePlaylist(userID: number, playlistID: string) {
   // playlist members will cascade after playlist is deleted
-  let query: Query = {
+  const query = {
     queryStr: `
-    SELECT storage_id from "audiofile"
-    WHERE playlist_id = $1
-    `,
-    params: [playlistID],
-  };
-  const res = await queryFn(query);
-  query = {
-    queryStr: `
-    CALL deletePlaylist($1, $2)
+    SELECT storage_id FROM deletePlaylist($1, $2)
     `,
     params: [playlistID, userID],
   };
-  await queryFn(query);
-  for (const row of res?.rows!) {
+
+  const res = await queryFn(query);
+  for (const row of res.rows) {
     // delete all songs from storage
     await deleteAudioFileStorage(row.storage_id);
   }
@@ -100,7 +106,18 @@ export async function changePlaylistName(playlistID: number, newName: string) {
  * @param {string} userID
  * @returns Array of all the user's playlists
  */
-export async function getAllUserPlaylists(userID: number) {
+export async function getAllUserPlaylists(userID: number, searchText? : string | undefined) {
+  let searchQuery;
+  let params;
+  if (searchText){
+    params = [userID, searchText]
+    searchQuery =  `
+    AND "search" @@ websearch_to_tsquery($2)
+    `
+  } else {
+    searchQuery = ''
+    params = [userID]
+  }
   const playlistQuery: Query = {
     queryStr: `
     SELECT playlist.*,
@@ -108,14 +125,18 @@ export async function getAllUserPlaylists(userID: number) {
     FROM playlist
     JOIN "user" owner ON playlist.owner = owner.id
     WHERE
+    (
     playlist.owner = $1
     OR
     playlist.id IN  
       (SELECT playlist_id FROM playlist_member
       WHERE user_id = $1
-      );
+      )
+    )
+    ${searchQuery}
+    ;
     `,
-    params: [userID],
+    params,
   };
   const res = await queryFn(playlistQuery);
   const playlists: Playlist[] = [];

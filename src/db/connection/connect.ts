@@ -1,8 +1,4 @@
 import pg from "pg";
-// attempts to connect to both mongodb and postgres
-export async function dbConnect() {
-  await connect_pg();
-}
 
 let pool: pg.Pool | undefined;
 
@@ -18,9 +14,6 @@ export async function connect_pg() {
     ssl: true,
   };
   pool = new pg.Pool(poolOptions);
-  pool?.on("error", (err) => {
-    console.log(err);
-  });
 }
 
 export interface Query {
@@ -42,14 +35,4 @@ export async function queryFn(query: Query): Promise<QueryResponse> {
     res = await pool.query(query.queryStr);
   }
   return { rows: res.rows, rowCount: res.rowCount ? res.rowCount : 0 };
-}
-/**
- * Used to get a client to execute queries in a row
- * or in a transaction.
- */
-export async function getClient() {
-  if (!pool) {
-    throw new Error("Connection pool not initialized");
-  }
-  return pool.connect();
 }

@@ -1,4 +1,4 @@
-import storage_client from "../../cloud_storage/storage_client.js";
+import storage_client from "../../storage/client.js";
 import { hash } from "bcrypt";
 import sharp from "sharp";
 import { Request, Response } from "express";

@@ -1,6 +1,6 @@
 import express from "express";
-import { storageTestConnect } from "./cloud_storage/storage_client.js";
-import { dbConnect } from "./db/connection/connect.js";
+import { storageTestConnect } from "./storage/client.js";
+import { connect_pg } from "./db/connection/connect.js";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 
@@ -11,7 +11,6 @@ import authRouter from "./routes/auth.js";
 
 const app = express();
 const PORT = process.env.NODE_ENV === "production" ? process.env.PORT : 5001;
-
 const ORIGIN =
   process.env.NODE_ENV === "production"
     ? "https://www.groovestreamapp.com"
@@ -35,7 +34,7 @@ app.use("/social", friendRouter);
 
 async function main() {
   try {
-    await Promise.all([dbConnect(), storageTestConnect()]);
+    await Promise.all([connect_pg(), storageTestConnect()]);
     app.listen(PORT);
     if (process.env.NODE_ENV !== "production") {
       console.log("Successfully started");

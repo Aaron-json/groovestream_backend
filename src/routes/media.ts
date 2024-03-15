@@ -29,9 +29,11 @@ router.use(verifyAccessToken);
 //get all root user media
 router.get("/", async (req, res) => {
   try {
-    const media = await getAllUserPlaylists((req as AuthRequest).userID);
+    
+    const media = await getAllUserPlaylists((req as AuthRequest).userID, req.query.searchText as string);
     res.json(media);
   } catch (err) {
+    console.log(err)
     res.status(500).send(err);
   }
 });

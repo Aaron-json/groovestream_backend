@@ -1,9 +1,9 @@
-CREATE OR REPLACE PROCEDURE deletePlaylist(
-    playlistID INTEGER,
-    userID INTEGER
+CREATE OR REPLACE FUNCTION deletePlaylist(
+    playlistID playlist.id%type,
+    userID "user".id%type
 )
-LANGUAGE plpgsql
-AS $$
+RETURNS SETOF audiofile AS
+$$
 BEGIN
     IF NOT EXISTS (
         SELECT 1
@@ -14,8 +14,13 @@ BEGIN
         RAISE EXCEPTION 'Error: Only the owner is allowed to delete this playlist.'
         USING ERRCODE = 'INV01';
     END IF;
-    
-    DELETE FROM audiofile WHERE playlist_id = playlistID;
+
+    -- Delete related audio files
+    RETURN QUERY
+    DELETE FROM audiofile WHERE playlist_id = playlistID
+    RETURNING *;
+
+    -- Delete the playlist
     DELETE FROM playlist WHERE id = playlistID;
 END;
-$$;
+$$ LANGUAGE plpgsql;

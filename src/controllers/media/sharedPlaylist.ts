@@ -89,7 +89,7 @@ export async function removeMember(
   const res = await queryFn(query);
 }
 
-export async function leaveSharedPlaylist(userID: number, playlistID: number) {
+export async function leavePlaylist(userID: number, playlistID: number) {
   const query: Query = {
     queryStr: `
     DELETE FROM playlist_member

@@ -7,7 +7,7 @@ import {
   acceptFriendRequest,
   getFriends,
   getFriendRequests,
-} from "../controllers/social/friendsController.js";
+} from "../controllers/social/friends.js";
 import {
   AuthRequest,
   verifyAccessToken,
@@ -18,7 +18,7 @@ import {
   acceptPlaylistInvite,
   rejectPlaylistInvite,
   removeMember,
-  leaveSharedPlaylist,
+  leavePlaylist,
 } from "../controllers/media/sharedPlaylist.js";
 // verify access tokens for all requests in this route
 router.use(verifyAccessToken);
@@ -147,7 +147,7 @@ router.delete("/playlist-member/:playlistID/:memberID", async (req, res) => {
 // leave a shared playlist
 router.delete("/playlist-member/:playlistID", async (req, res) => {
   try {
-    await leaveSharedPlaylist(
+    await leavePlaylist(
       (req as unknown as AuthRequest).userID,
       Number(req.params.playlistID)
     );

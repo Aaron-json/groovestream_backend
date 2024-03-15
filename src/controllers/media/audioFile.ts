@@ -1,6 +1,6 @@
 import storage_client, {
   storageClient,
-} from "../../cloud_storage/storage_client.js";
+} from "../../storage/client.js";
 import Busboy from "busboy";
 import { PassThrough, Readable } from "stream";
 import * as uuid from "uuid";
@@ -214,7 +214,6 @@ export async function saveAudioFileDb(
   };
 
   const res = await queryFn(query);
-  console.log(res);
 }
 
 export const deleteAudioFile = async (
