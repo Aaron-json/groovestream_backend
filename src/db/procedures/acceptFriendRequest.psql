@@ -22,7 +22,7 @@ BEGIN
     WHERE "to" = senderID
     AND "from" = userID;
 
-    -- Insert the user into the playlist
+    -- Create a friendship
     INSERT INTO "friendship" (user_1, user_2)
     VALUES (userID, senderID);
 END;
