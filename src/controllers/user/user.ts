@@ -6,9 +6,7 @@ import { AuthRequest } from "../auth/middleware.js";
 import { Query, queryFn } from "../../db/connection/connect.js";
 import { ProfilePicture, User } from "../../types/user.js";
 import { ApiError } from "@google-cloud/storage";
-import * as pg from "pg";
 import { ServerError } from "../../types/errors.js";
-import { Server } from "http";
 
 export async function getUser(
   userId: number,

@@ -20,13 +20,13 @@ export const login = async (username: number, password: string) => {
     throw new Error(`User with username '${username}' does not exist`);
   }
 
-  const valid = await compare(password, response?.rows[0].password_hash);
+  const valid = await compare(password, response.rows[0].password_hash);
   if (!valid) {
     throw new Error(`Login failed`);
   }
-  const userId = response?.rows[0].id;
-  const accessToken = await createAccessToken(userId);
-  const refreshToken = await createRefreshToken(userId);
+  const userID = response.rows[0].id;
+  const accessToken = await createAccessToken(userID);
+  const refreshToken = await createRefreshToken(userID);
   return { accessToken, refreshToken };
 };
 

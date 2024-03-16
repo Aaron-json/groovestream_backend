@@ -77,12 +77,7 @@ export async function removeMember(
 ) {
   const query: Query = {
     queryStr: `
-    DELETE FROM playlist_member
-    JOIN playlist ON playlist_member.playlist_id = playlist.id
-    WHERE 
-    playlist_member.playlist_id = $1
-    AND playlist.owner = $2
-    AND playlist_members.user_id = $3
+    CALL removePlaylistMember($1, $2, $3);
     `,
     params: [playlistID, userID, memberID],
   };
@@ -92,9 +87,7 @@ export async function removeMember(
 export async function leavePlaylist(userID: number, playlistID: number) {
   const query: Query = {
     queryStr: `
-    DELETE FROM playlist_member
-    WHERE user_id = $1 AND
-    playlist_id = $2;
+    CALL leavePlaylist($1, $2);
     `,
     params: [userID, playlistID],
   };
