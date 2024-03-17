@@ -33,7 +33,6 @@ router
       const userInfo = await getUser((req as AuthRequest).userID, req.body);
       res.json(userInfo);
     } catch (error) {
-      console.log(error);
       res.status(500).json(error);
     }
   })
@@ -43,7 +42,6 @@ router
       await updateUserInfo((req as AuthRequest).userID, req.body);
       res.sendStatus(200);
     } catch (error) {
-      console.log(error);
       res.status(500).json(error);
     }
   });

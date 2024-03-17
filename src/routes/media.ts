@@ -33,7 +33,6 @@ router.get("/", async (req, res) => {
     const media = await getAllUserPlaylists((req as AuthRequest).userID, req.query.searchText as string);
     res.json(media);
   } catch (err) {
-    console.log(err)
     res.status(500).send(err);
   }
 });
@@ -107,7 +106,6 @@ router.delete("/1/:playlistID", async (req, res) => {
     );
     res.json(200);
   } catch (error) {
-    console.log(error);
     res.status(500).send(error);
   }
 });
@@ -121,7 +119,6 @@ router.get("/audiofile/most-played", async (req, res) => {
     );
     res.json(results);
   } catch (error) {
-    console.log(error);
     res.status(500).json(error);
   }
 });
@@ -142,7 +139,6 @@ router.get("/audiofile/history", async (req, res) => {
     );
     res.json(results);
   } catch (error) {
-    console.log(error);
     res.status(500).json(error);
   }
 });
@@ -155,7 +151,6 @@ router.post("/audiofile/history/:audioFileID", async (req, res) => {
     );
     res.sendStatus(200);
   } catch (error) {
-    console.log(error);
     res.status(500).json(error);
   }
 });

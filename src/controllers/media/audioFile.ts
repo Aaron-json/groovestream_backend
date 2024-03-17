@@ -73,7 +73,6 @@ export const uploadAudioFile = async (req: Request, res: Response) => {
       } catch (e) {
         // destroy the incoming file stream to avoid unclosed streams
         file.destroy(e as Error);
-        console.log(e);
         failedUploads.push({
           filename,
           error: e,
@@ -86,8 +85,7 @@ export const uploadAudioFile = async (req: Request, res: Response) => {
       if (busboyFinished && fileCounter === 0) {
         // when uploading the last file
         if (failedUploads.length > 0) {
-          console.log(failedUploads);
-          res.status(500).json(failedUploads);
+          res.status(207).json(failedUploads);
         } else {
           return res.sendStatus(201);
         }
@@ -238,7 +236,6 @@ export const downloadAudioFile = async (req: Request, res: Response) => {
   } catch (err) {
     // do not attempt to write to response. It will be closed by the pipeline
     // on error and success
-    console.log(err);
     return res.sendStatus(500);
   }
 };

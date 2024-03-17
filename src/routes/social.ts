@@ -91,7 +91,6 @@ router.get("/playlist-invites", async (req, res) => {
     const invites = await getPlaylistInvites((req as AuthRequest).userID);
     res.json(invites);
   } catch (error) {
-    console.log(error);
     res.status(500).send(error);
   }
 });
