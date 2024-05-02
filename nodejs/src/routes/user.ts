@@ -13,7 +13,7 @@ import {
   AuthRequest,
   verifyAccessToken,
 } from "../controllers/auth/middleware.js";
-import { ServerError } from "../types/errors.js";
+import { ServerError } from "../util/types/errors.js";
 
 router
   .route("/")

@@ -4,9 +4,9 @@ import sharp from "sharp";
 import { Request, Response } from "express";
 import { AuthRequest } from "../auth/middleware.js";
 import { Query, queryFn } from "../../db/connection/connect.js";
-import { ProfilePicture, User } from "../../types/user.js";
+import { ProfilePicture, User } from "../../util/types/user.js";
 import { ApiError } from "@google-cloud/storage";
-import { ServerError } from "../../types/errors.js";
+import { ServerError } from "../../util/types/errors.js";
 
 export async function getUser(
   userId: number,

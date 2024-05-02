@@ -9,9 +9,8 @@ import * as mm from "music-metadata";
 import { Request, Response } from "express";
 import { AuthRequest } from "../auth/middleware.js";
 import { Query, queryFn } from "../../db/connection/connect.js";
-import { AudioFile, MediaType } from "../../types/media.js";
+import { AudioFile, MediaType } from "../../util/types/media.js";
 import { pipeline as pipeline_async } from "stream/promises";
-
 export const uploadAudioFile = async (req: Request, res: Response) => {
   // handles all audio file uploads
   // set up function scoped resources for the upload
@@ -223,22 +222,7 @@ export const deleteAudioFile = async (
   // delete it from db
   await deleteAudioFileDb(audioFileID);
 };
-export const downloadAudioFile = async (req: Request, res: Response) => {
-  const { storageID } = req.params;
-  try {
-    const response = await storage_client
-      .bucket(process.env.GLOBAL_AUDIOFILES_BUCKET)
-      .file(storageID)
-      .download();
-    res.send(response[0].toString("base64"));
-    // pipeline will close streams on errors to prevent memory leaks
-    // however we lose the ability to interact with res on errors
-  } catch (err) {
-    // do not attempt to write to response. It will be closed by the pipeline
-    // on error and success
-    return res.sendStatus(500);
-  }
-};
+
 /**
  * Returns an audiofile's metadata in the appropriate shape to be sent
  * to the user directly.
@@ -295,9 +279,9 @@ export function parseDbAudioFile(dbAudioFile: any) {
     },
     icon: dbAudioFile.icon
       ? {
-          data: dbAudioFile.icon.toString("base64"),
-          mimeType: dbAudioFile.icon_mime_type,
-        }
+        data: dbAudioFile.icon.toString("base64"),
+        mimeType: dbAudioFile.icon_mime_type,
+      }
       : undefined,
   };
   return audioFile;

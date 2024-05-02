@@ -1,24 +1,25 @@
 # ignore node-modules folder
-/node_modules
-# jet brains apps use .idea files for config
-/.idea
+node_modules/
+
+# jet brains config
+.idea
 # env file
 .env
 # build files
-/dist
-# ignore json files in the root dit
-# except for package-json and package
-*.json
-!package.json
-!package-lock.json
-!tsconfig.json
-.gcloudignore
-app.yaml
+dist/
+build/
 
-TODO.txt
+# binaries
+*.exe
+*.out
+
+# vscode
+*vscode*
 *.code-workspace
 *.pem
 
 # performance log files
 *.log
-vscode*
+
+# secrets folder
+secrets/

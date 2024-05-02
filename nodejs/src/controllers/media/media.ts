@@ -4,7 +4,7 @@
  * Ex. downloading a user's audio file. These are stores in the sama path in storage
  */
 import { Query, queryFn } from "../../db/connection/connect.js";
-import { AudioFile } from "../../types/media.js";
+import { AudioFile } from "../../util/types/media.js";
 import { parseDbAudioFile } from "./audioFile.js";
 export async function mostPlayedAudioFiles(userID: number, limit: number) {
   const query: Query = {

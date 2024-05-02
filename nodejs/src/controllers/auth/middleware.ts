@@ -1,5 +1,6 @@
 import jsonwebtoken from "jsonwebtoken";
 import { Request, Response, CookieOptions } from "express";
+import { ENVIRONMENT } from "../../util/constants.js";
 export interface AuthRequest extends Request {
   userID: number;
 }
@@ -13,8 +14,8 @@ export interface TokenPayload {
 export const refreshTokenCookieOptions: CookieOptions = {
   httpOnly: true,
   maxAge: 60 * 60 * 2 * 1000, // unit: milliseconds. (2 hours)
-  sameSite: process.env.NODE_ENV !== "production" ? "strict" : "none", // in prod we send cross-site request to the server
-  secure: process.env.NODE_ENV === "production",
+  sameSite: ENVIRONMENT !== "production" ? "strict" : "none", // in prod we send cross-site request to the server
+  secure: ENVIRONMENT === "production",
 };
 
 export function createAccessToken(userID: number) {

@@ -1,6 +1,6 @@
 import { Query, queryFn } from "../../db/connection/connect.js";
-import { Friend } from "../../types/relations.js";
-import { FriendRequest } from "../../types/invites.js";
+import { Friend } from "../../util/types/relations.js";
+import { FriendRequest } from "../../util/types/invites.js";
 
 export async function getFriends(
   userID: number,

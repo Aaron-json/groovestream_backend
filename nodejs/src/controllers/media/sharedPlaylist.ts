@@ -1,6 +1,6 @@
 import { Query, queryFn } from "../../db/connection/connect.js";
-import { PlaylistInvite } from "../../types/invites.js";
-import { PlaylistMember } from "../../types/relations.js";
+import { PlaylistInvite } from "../../util/types/invites.js";
+import { PlaylistMember } from "../../util/types/relations.js";
 
 export async function sendPlaylistInvite(
   userId: number,

@@ -1,5 +1,5 @@
 import { deleteAudioFileStorage } from "./audioFile.js";
-import { AudioFile, MediaType, Playlist } from "../../types/media.js";
+import { AudioFile, MediaType, Playlist } from "../../util/types/media.js";
 import { Query, queryFn } from "../../db/connection/connect.js";
 import { parseDbAudioFile } from "./audioFile.js";
 
@@ -17,10 +17,10 @@ export async function getPlaylistInfo(playlistID: number): Promise<Playlist> {
   const dbPlaylist = response.rows[0];
   return parseDbPlaylist(dbPlaylist);
 }
-export async function getPlaylistAudioFiles(playlistID: number, searchText? : string | undefined) {
+export async function getPlaylistAudioFiles(playlistID: number, searchText?: string | undefined) {
   let params;
   let searchQuery;
-  if (searchText){
+  if (searchText) {
     params = [playlistID, searchText]
     searchQuery = `
     AND "search" @@ websearch_to_tsquery($2)
@@ -106,12 +106,12 @@ export async function changePlaylistName(playlistID: number, newName: string) {
  * @param {string} userID
  * @returns Array of all the user's playlists
  */
-export async function getAllUserPlaylists(userID: number, searchText? : string | undefined) {
+export async function getAllUserPlaylists(userID: number, searchText?: string | undefined) {
   let searchQuery;
   let params;
-  if (searchText){
+  if (searchText) {
     params = [userID, searchText]
-    searchQuery =  `
+    searchQuery = `
     AND "search" @@ websearch_to_tsquery($2)
     `
   } else {

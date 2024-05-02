@@ -1,7 +1,6 @@
 declare global {
   namespace NodeJS {
     interface ProcessEnv {
-      NODE_ENV: "production" | undefined;
       G00GLE_CLOUD_KEY_FILE: string;
       ACCESS_TOKEN_SECRET: string;
       REFRESH_TOKEN_SECRET: string;
@@ -15,4 +14,4 @@ declare global {
   }
 }
 
-export {};
+export { };

@@ -5,9 +5,9 @@
   "main": "./dist/index.js",
   "type": "module",
   "scripts": {
-    "dev": "node --env-file=.env --import=tsx --watch-path=./src --watch ./src/index.ts",
-    "start": "node --env-file=.env ./dist/index.js",
-    "build:dev": "tsc"
+    "dev": "node --env-file=./secrets/.env --import=tsx --watch-path=./src --watch ./src/index.ts",
+    "start": "node --env-file=./secrets/.env ./dist/index.js",
+    "build": "tsc"
   },
   "keywords": [
     "groovestream"

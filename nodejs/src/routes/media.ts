@@ -3,7 +3,6 @@ import {
   deleteAudioFile,
   getAudioFileInfo,
   uploadAudioFile,
-  downloadAudioFile,
 } from "../controllers/media/audioFile.js";
 import {
   createPlaylist,
@@ -29,7 +28,7 @@ router.use(verifyAccessToken);
 //get all root user media
 router.get("/", async (req, res) => {
   try {
-    
+
     const media = await getAllUserPlaylists((req as AuthRequest).userID, req.query.searchText as string);
     res.json(media);
   } catch (err) {
@@ -45,7 +44,6 @@ router.post("/0/:playlistID", async (req, res) => {
 
 // get audiofile metadata
 router.get("/info/0/:audioFileID", async (req, res) => {
-  const userID = (req as unknown as AuthRequest).userID;
   const audioFileID = req.params.audioFileID;
   try {
     const metadata = await getAudioFileInfo(+audioFileID);
@@ -55,8 +53,6 @@ router.get("/info/0/:audioFileID", async (req, res) => {
   }
 });
 
-// stream an audiofile
-router.get("/stream/:storageID", downloadAudioFile);
 // delete an audiofile
 router.delete("/0/:audioFileID/:storageID", async (req, res) => {
   try {
