@@ -3,7 +3,6 @@ package auth
 import (
 	"context"
 	"errors"
-	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -44,7 +43,6 @@ func parseRequest(r *http.Request) (JWTClaims, error) {
 // middleware to puth the user authentication information in the request context
 func ParseRequest(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Println("auth middleware")
 		claims, err := parseRequest(r)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusUnauthorized)

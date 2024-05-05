@@ -12,15 +12,14 @@ import (
 
 func Handler() http.Handler {
 	mux := chi.NewRouter()
-	if util.ENVIRONMENT == "production" {
-		mux.Use(auth.ParseRequest)
-	}
-	// middleware is ran last to first. cors is added last since it always has
-	// to be first
-	mux.Use(CorsMiddleware)
+
+	// middleware
+	mux.Use(CorsMiddleware) // always first
+	mux.Use(auth.ParseRequest)
+
+	// routes
 	mux.Get("/media/stream/{storageID}", controllers.StreamAudioFile)
 	mux.Post(("/media/0/{playlistID}"), controllers.UploadAudioFile)
-	// middleware is ran in the inverse order of being registered
 	return mux
 }
 
