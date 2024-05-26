@@ -1,10 +1,9 @@
-import storage_client, {
+import {
   storageClient,
 } from "../../storage/client.js";
 import Busboy from "busboy";
 import { PassThrough, Readable } from "stream";
 import * as uuid from "uuid";
-import sharp from "sharp";
 import * as mm from "music-metadata";
 import { Request, Response } from "express";
 import { AuthRequest } from "../auth/middleware.js";
@@ -21,10 +20,10 @@ export const uploadAudioFile = async (req: Request, res: Response) => {
   let busboyFinished = false;
   let fileCounter = 0;
   const failedUploads: { filename: string; error: any }[] = [];
-
   busboy.on(
     "file",
-    async (fieldname, file, { filename, encoding, mimeType }) => {
+    async (_, file, { filename, mimeType }) => {
+      // file handler
       fileCounter++;
       const newID = uuid.v4();
       const metadataStream = new PassThrough();
@@ -48,7 +47,7 @@ export const uploadAudioFile = async (req: Request, res: Response) => {
           contentType: mimeType,
         };
 
-        const metadata = parseStreamAudioFile(
+        const metadata = parseAudioFileStream(
           metadataStream,
           (req as AuthRequest).userID,
           {
@@ -64,7 +63,7 @@ export const uploadAudioFile = async (req: Request, res: Response) => {
           storageStream,
           storageUploadOptions
         );
-        const [audioFile, uploadToStorageResponse] = await Promise.all([
+        const [audioFile] = await Promise.all([
           metadata,
           storageUpload,
         ]);
@@ -105,7 +104,7 @@ export const uploadAudioFile = async (req: Request, res: Response) => {
  * @param fileInfo  Object containing information such as filename and mimeType
  * @returns Object containing all the metadata in the shape defined by the AudioFile Schema
  * */
-async function parseStreamAudioFile(
+async function parseAudioFileStream(
   stream: Readable,
   userID: number,
   fileInfo: {
@@ -150,17 +149,14 @@ async function parseStreamAudioFile(
       channels: format.numberOfChannels,
     };
     if (common.picture) {
-      const compressedIcon = await sharp(common.picture[0].data)
-        .resize(150, 150, { fit: "cover" })
-        .jpeg({ quality: 80 })
-        .toBuffer();
       newAudioFile.icon = {
-        mimeType: "image/jpeg",
-        data: compressedIcon,
+        mimeType: common.picture[0].format,
+        data: common.picture[0].data,
       };
     }
   } catch (error) {
   } finally {
+    // return audiofile with basic information
     return newAudioFile;
   }
 }
@@ -172,13 +168,9 @@ export const deleteAudioFileDb = async (audioFileID: number) => {
     `,
     params: [audioFileID],
   };
-  const res = await queryFn(query);
+  await queryFn(query);
 };
-/**
- *
- * @param userID
- * @param audioFile Values with a default value in the database are ommited from the type
- */
+
 export async function saveAudioFileDb(
   audioFile: Omit<AudioFile, "id" | "uploadedAt" | "type">
 ) {
@@ -210,7 +202,7 @@ export async function saveAudioFileDb(
     ],
   };
 
-  const res = await queryFn(query);
+  await queryFn(query);
 }
 
 export const deleteAudioFile = async (

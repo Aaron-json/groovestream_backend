@@ -2,6 +2,7 @@ package routes
 
 import (
 	"net/http"
+	"net/http/pprof"
 
 	"github.com/Aaron-json/groovestream_backend_go/controllers"
 	"github.com/Aaron-json/groovestream_backend_go/pkg/auth"
@@ -20,6 +21,10 @@ func Handler() http.Handler {
 	// routes
 	mux.Get("/media/stream/{storageID}", controllers.StreamAudioFile)
 	mux.Post(("/media/0/{playlistID}"), controllers.UploadAudioFile)
+	if util.ENVIRONMENT == "development" {
+		mux.HandleFunc("/debug/pprof/*", pprof.Index)
+		return mux
+	}
 	return mux
 }
 
@@ -31,12 +36,12 @@ func CorsMiddleware(h http.Handler) http.Handler {
 		allowedOrigins = []string{"https://www.groovestreamapp.com"}
 	}
 
-	cors := cors.New(cors.Options{
+	corsConf := cors.New(cors.Options{
 		AllowedOrigins:   allowedOrigins,
 		AllowedMethods:   []string{"GET", "POST"},
 		AllowedHeaders:   []string{"*"},
 		AllowCredentials: true,
 	})
-	return cors.Handler(h)
+	return corsConf.Handler(h)
 
 }

@@ -22,11 +22,11 @@ export interface AudioFile {
   trackTotal?: number | NullOrUndefined;
   genre?: string | NullOrUndefined;
   icon?:
-    | {
-        mimeType: string;
-        data: string | Buffer;
-      }
-    | NullOrUndefined;
+  | {
+    mimeType: string;
+    data: string | Buffer;
+  }
+  | NullOrUndefined;
   format: {
     bitrate?: number | NullOrUndefined;
     channels?: number | NullOrUndefined;

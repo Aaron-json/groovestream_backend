@@ -23,4 +23,3 @@ export async function storageTestConnect() {
   }
 }
 
-export default storageClient;

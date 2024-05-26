@@ -1,4 +1,4 @@
-import storage_client from "../../storage/client.js";
+import { storageClient } from "../../storage/client.js";
 import { hash } from "bcrypt";
 import sharp from "sharp";
 import { Request, Response } from "express";
@@ -100,7 +100,7 @@ export async function usernameExists(username: string) {
 
 export const getProfilePicture = async (userID: number) => {
   try {
-    const file = storage_client
+    const file = storageClient
       .bucket(process.env.USER_DATA_BUCKET)
       .file(`${userID}/profilePicture`);
     const dataRequest = await file.download();
@@ -135,7 +135,7 @@ export const uploadProfilePhoto = async (
     .resize(300, 300, { fit: "cover" })
     .jpeg({ quality: 85 })
     .toBuffer();
-  const file = storage_client
+  const file = storageClient
     .bucket(process.env.USER_DATA_BUCKET)
     .file(`${userID}/profilePicture`);
   await file.save(compressedImage, {
@@ -144,7 +144,6 @@ export const uploadProfilePhoto = async (
 };
 
 export const deleteUser = async (req: Request, res: Response) => {
-  const { userID } = req as AuthRequest;
   res.sendStatus(500);
 };
 
