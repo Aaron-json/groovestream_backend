@@ -62,7 +62,7 @@ type AudiofileFormat struct {
 }
 
 // Parses the database audiofile format into the standard format to be sent to the user.
-// Only needed for outgoing data.
+// Only needed for outgoing data to maintain compatibility with current api format
 func ParseDbAudiofile(dbAudiofile *db.DbAudioFile) *AudioFile {
 	audiofile := &AudioFile{
 		Id:          dbAudiofile.Id,
@@ -150,8 +150,8 @@ func UploadAudioFile(w http.ResponseWriter, r *http.Request) {
 		}
 		nParts++
 		log.Println("processing new part...", part.FileName())
-		// to avoid a deadlocks and missed data every part MUsT write exactly ONE response to the channel.
-		handlePart_test(part, int64(playlistId), authData, resultsCh)
+		// to avoid deadlocks and missed data, every part MUsT write exactly ONE response to the channel.
+		handlePart(part, int64(playlistId), authData, resultsCh)
 	}
 	res := make([]Result, 0, nParts)
 	// batch uploading to database
@@ -177,10 +177,10 @@ func UploadAudioFile(w http.ResponseWriter, r *http.Request) {
 
 // Reads the part into a buffer and processes the part concurrently, allowing parralel processing of parts.
 // Should not attempt to read from the part after this method is called
-func handlePart_test(part *multipart.Part, playlistID int64, authData auth.RequestAuthData, resCh chan Result) {
+func handlePart(part *multipart.Part, playlistID int64, authData auth.RequestAuthData, resCh chan Result) {
 	defer part.Close()
 	// set up buffer to save file
-	buf := new(bytes.Buffer)
+	buf := bytes.NewBuffer(bufPool.Get())
 	// write the file to the buffer and exit immediately to start the next part
 	_, err := io.Copy(buf, part)
 	if err != nil {
@@ -194,7 +194,7 @@ func handlePart_test(part *multipart.Part, playlistID int64, authData auth.Reque
 }
 
 // parses metadata from the given file and creates an audiofile from it.
-// This function will always return at least the minimum required information required for an audiofile
+// This function will always return at least the minimum required information to create an audiofile object
 func createAudiofile(r io.ReadSeeker, resCh chan *db.DbAudioFile, userID, playlistID int64, filename, storageID, mimeType string) {
 	audiofile := db.DbAudioFile{
 		StorageId:  storageID,
@@ -244,6 +244,7 @@ func createAudiofile(r io.ReadSeeker, resCh chan *db.DbAudioFile, userID, playli
 	resCh <- &audiofile
 }
 func processFile(buf []byte, playlistID int64, part *multipart.Part, authData auth.RequestAuthData, resCh chan Result) {
+	defer bufPool.Put(buf) // return buffer to pool when finished processing
 	newObjectId := uuid.NewString()
 	tagsCh := make(chan *db.DbAudioFile, 1)
 	storageCh := make(chan error, 1)
