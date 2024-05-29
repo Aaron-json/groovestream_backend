@@ -180,7 +180,7 @@ func UploadAudioFile(w http.ResponseWriter, r *http.Request) {
 func handlePart(part *multipart.Part, playlistID int64, authData auth.RequestAuthData, resCh chan Result) {
 	defer part.Close()
 	// set up buffer to save file
-	buf := bytes.NewBuffer(bufPool.Get())
+	buf := new(bytes.Buffer)
 	// write the file to the buffer and exit immediately to start the next part
 	_, err := io.Copy(buf, part)
 	if err != nil {
@@ -244,7 +244,6 @@ func createAudiofile(r io.ReadSeeker, resCh chan *db.DbAudioFile, userID, playli
 	resCh <- &audiofile
 }
 func processFile(buf []byte, playlistID int64, part *multipart.Part, authData auth.RequestAuthData, resCh chan Result) {
-	defer bufPool.Put(buf) // return buffer to pool when finished processing
 	newObjectId := uuid.NewString()
 	tagsCh := make(chan *db.DbAudioFile, 1)
 	storageCh := make(chan error, 1)
