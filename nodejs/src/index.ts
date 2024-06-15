@@ -8,13 +8,13 @@ import userRouter from "./routes/user.js";
 import mediaRouter from "./routes/media.js";
 import friendRouter from "./routes/social.js";
 import authRouter from "./routes/auth.js";
-import { ENVIRONMENT } from "./util/constants.js";
+import { ENVIRONMENT, Environment } from "./util/constants.js";
 
 const app = express();
 const PORT = 8080;
 
 const ORIGIN =
-  ENVIRONMENT === "production"
+  ENVIRONMENT === Environment.PRODUCTION
     ? "https://www.groovestreamapp.com"
     : "http://localhost:5173";
 
@@ -38,7 +38,11 @@ async function main() {
   try {
     await Promise.all([connect_pg(), storageTestConnect()]);
     app.listen(PORT);
-    console.log("Successfully started");
+    if (ENVIRONMENT === Environment.PRODUCTION) {
+      console.log("Running in production");
+    } else if (ENVIRONMENT == Environment.DEVELOPMENT) {
+      console.log("Running in development");
+    }
   } catch (error) {
     console.log(error);
   }

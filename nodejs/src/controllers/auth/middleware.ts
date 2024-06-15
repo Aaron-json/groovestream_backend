@@ -1,6 +1,6 @@
 import jsonwebtoken from "jsonwebtoken";
 import { Request, Response, CookieOptions } from "express";
-import { ENVIRONMENT } from "../../util/constants.js";
+import { ENVIRONMENT, Environment } from "../../util/constants.js";
 export interface AuthRequest extends Request {
   userID: number;
 }
@@ -14,8 +14,8 @@ export interface TokenPayload {
 export const refreshTokenCookieOptions: CookieOptions = {
   httpOnly: true,
   maxAge: 60 * 60 * 2 * 1000, // unit: milliseconds. (2 hours)
-  sameSite: ENVIRONMENT !== "production" ? "strict" : "none", // in prod we send cross-site request to the server
-  secure: ENVIRONMENT === "production",
+  sameSite: ENVIRONMENT !== Environment.PRODUCTION ? "strict" : "none",
+  secure: ENVIRONMENT === Environment.PRODUCTION,
 };
 
 export function createAccessToken(userID: number) {
@@ -26,7 +26,7 @@ export function createAccessToken(userID: number) {
       {
         expiresIn: 60 * 30, // units: seconds. (30 minutes)
       },
-      function (err, payload) {
+      function(err, payload) {
         // use callback to avoid blocking the blocking the event loop since
         // crypto functions are cpu-heavy
         if (err) {
@@ -49,7 +49,7 @@ export function createRefreshToken(userID: number) {
           ? refreshTokenCookieOptions.maxAge / 1000
           : 0, //convert milliseconds to seconds
       },
-      function (err, token) {
+      function(err, token) {
         if (err) {
           reject(err);
         } else {
@@ -72,7 +72,7 @@ function _verifyToken(token: string, type: Token) {
       default:
         reject(`Invalid token type: ${type}`);
     }
-    jsonwebtoken.verify(token, secret!, function (err, tokenPayload) {
+    jsonwebtoken.verify(token, secret!, function(err, tokenPayload) {
       if (err) {
         reject(err);
       } else {

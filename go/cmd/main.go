@@ -9,11 +9,15 @@ import (
 	"github.com/Aaron-json/groovestream_backend_go/pkg/db"
 	"github.com/Aaron-json/groovestream_backend_go/pkg/storage"
 	"github.com/Aaron-json/groovestream_backend_go/routes"
+	"github.com/Aaron-json/groovestream_backend_go/util"
 	"github.com/joho/godotenv"
 )
 
 func main() {
 	// paths are relative to the root of the go project
+	if err := util.ParseEnvFlags(); err != nil {
+		log.Panicln(err)
+	}
 	if err := godotenv.Load("./secrets/.env"); err != nil {
 		log.Panicln(err)
 	}

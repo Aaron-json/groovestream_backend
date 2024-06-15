@@ -74,7 +74,7 @@ router.post("/1", async (req, res) => {
   }
 });
 
-// get the playlist's metadata document
+// get the playlist's metadata document. does not incude audiofiles
 router.get("info/1/:playlistID", async (req, res) => {
   try {
     const playlist = await getPlaylistInfo(+req.params.playlistID);
